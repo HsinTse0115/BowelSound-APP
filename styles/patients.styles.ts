@@ -1,0 +1,497 @@
+// styles/patients.styles.ts
+import { StyleSheet } from 'react-native';
+
+/**
+ * 病患管理模組的樣式定義
+ */
+export const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#F4F7FB',
+  },
+  header: {
+    paddingTop: 55, // 微調頂部空間以適應手機狀態列
+    paddingBottom: 16,
+    paddingHorizontal: 20,
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E2E8F0',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  backButton: {
+    padding: 6,
+    borderRadius: 12,
+    backgroundColor: '#F8FAFC',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#1E293B',
+  },
+  addHeaderButton: {
+    padding: 8,
+    borderRadius: 12,
+    backgroundColor: '#E8F4FD',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  searchContainer: {
+    paddingHorizontal: 20,
+    paddingVertical: 14,
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E2E8F0',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  searchBarWrapper: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F1F5F9',
+    borderRadius: 14,
+    paddingHorizontal: 12,
+    height: 46,
+  },
+  searchIcon: {
+    marginRight: 8,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 15,
+    color: '#1E293B',
+    fontWeight: '500',
+    height: '100%',
+    padding: 0, // 移除預設 padding
+  },
+  clearSearchButton: {
+    padding: 4,
+  },
+  listContent: {
+    padding: 20,
+    paddingBottom: 100, // 留空避免被底部按鈕遮擋
+  },
+  emptyContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 60,
+  },
+  emptyText: {
+    marginTop: 12,
+    fontSize: 16,
+    color: '#94A3B8',
+    fontWeight: '600',
+  },
+  emptySubText: {
+    marginTop: 4,
+    fontSize: 14,
+    color: '#CBD5E1',
+  },
+  
+  // 病患卡片樣式
+  patientCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    marginBottom: 16,
+    padding: 16,
+    shadowColor: '#94A3B8',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 3,
+    borderWidth: 1,
+    borderColor: '#F1F5F9',
+  },
+  patientCardActive: {
+    borderColor: '#0D6EFD',
+    shadowOpacity: 0.12,
+    shadowRadius: 16,
+  },
+  cardMainRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  avatarContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 14,
+  },
+  avatarText: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  infoContainer: {
+    flex: 1,
+  },
+  nameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
+    gap: 8,
+  },
+  patientName: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: '#1E293B',
+  },
+  idText: {
+    fontSize: 13,
+    color: '#64748B',
+    fontWeight: '600',
+    backgroundColor: '#F1F5F9',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  demographicsText: {
+    fontSize: 14,
+    color: '#64748B',
+    fontWeight: '500',
+  },
+  genderBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 8,
+    alignSelf: 'flex-start',
+  },
+  genderBadgeM: {
+    backgroundColor: '#E0F2FE',
+  },
+  genderBadgeF: {
+    backgroundColor: '#FCE7F3',
+  },
+  genderTextM: {
+    color: '#0284C7',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  genderTextF: {
+    color: '#DB2777',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  expandIcon: {
+    padding: 4,
+  },
+
+  // 卡片展開詳細區塊
+  expandedDetail: {
+    marginTop: 16,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#F1F5F9',
+  },
+  detailLabel: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#94A3B8',
+    marginBottom: 6,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  noteText: {
+    fontSize: 14,
+    color: '#475569',
+    lineHeight: 20,
+    backgroundColor: '#F8FAFC',
+    padding: 12,
+    borderRadius: 12,
+    marginBottom: 16,
+    fontWeight: '500',
+  },
+  historySectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  historySectionTitle: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#334155',
+  },
+  historyCount: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#64748B',
+    backgroundColor: '#E2E8F0',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 10,
+  },
+  recordList: {
+    gap: 10,
+  },
+  recordCard: {
+    backgroundColor: '#F8FAFC',
+    borderRadius: 14,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  recordHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  recordDateRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  recordDate: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#475569',
+  },
+  recordDuration: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#8B5CF6',
+    backgroundColor: '#F3E8FF',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  recordResultContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 4,
+  },
+  aiNotes: {
+    flex: 1,
+    fontSize: 13,
+    color: '#64748B',
+    marginRight: 12,
+    lineHeight: 18,
+    fontWeight: '500',
+  },
+  statusTag: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  statusTagNormal: {
+    backgroundColor: '#DCFCE7',
+    borderColor: '#86EFAC',
+    borderWidth: 0.5,
+  },
+  statusTagHyper: {
+    backgroundColor: '#FEE2E2',
+    borderColor: '#FCA5A5',
+    borderWidth: 0.5,
+  },
+  statusTagHypo: {
+    backgroundColor: '#FEF3C7',
+    borderColor: '#FDE68A',
+    borderWidth: 0.5,
+  },
+  statusTagTextNormal: {
+    color: '#15803D',
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  statusTagTextHyper: {
+    color: '#B91C1C',
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  statusTagTextHypo: {
+    color: '#B45309',
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  emptyRecordsText: {
+    fontSize: 13,
+    color: '#94A3B8',
+    textAlign: 'center',
+    paddingVertical: 16,
+    fontStyle: 'italic',
+  },
+
+  // 懸浮新增病患按鈕 (FAB)
+  fab: {
+    position: 'absolute',
+    bottom: 30,
+    right: 20,
+    width: 140,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: '#0D6EFD',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 8,
+    shadowColor: '#0D6EFD',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.25,
+    shadowRadius: 10,
+    elevation: 6,
+  },
+  fabText: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+  },
+
+  // Modal 彈窗樣式
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(15, 23, 42, 0.6)',
+    justifyContent: 'flex-end',
+  },
+  modalContainer: {
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    maxHeight: '85%',
+    paddingBottom: 34,
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: -10 },
+    shadowOpacity: 0.15,
+    shadowRadius: 20,
+    elevation: 10,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+    paddingVertical: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
+  },
+  modalTitle: {
+    fontSize: 19,
+    fontWeight: '800',
+    color: '#1E293B',
+  },
+  closeModalButton: {
+    padding: 4,
+    borderRadius: 10,
+    backgroundColor: '#F1F5F9',
+  },
+  modalContent: {
+    paddingHorizontal: 24,
+    paddingVertical: 20,
+  },
+  formField: {
+    marginBottom: 20,
+  },
+  fieldLabel: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#475569',
+    marginBottom: 8,
+  },
+  input: {
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    height: 48,
+    fontSize: 15,
+    color: '#1E293B',
+    fontWeight: '500',
+  },
+  inputError: {
+    borderColor: '#EF4444',
+    backgroundColor: '#FEF2F2',
+  },
+  notesInput: {
+    height: 100,
+    paddingTop: 12,
+    paddingBottom: 12,
+    textAlignVertical: 'top', // 確保 Android 平台文字從頂部開始
+  },
+  genderSelector: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  genderOption: {
+    flex: 1,
+    height: 46,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#F8FAFC',
+  },
+  genderOptionSelectedM: {
+    borderColor: '#0D6EFD',
+    backgroundColor: '#E8F4FD',
+  },
+  genderOptionSelectedF: {
+    borderColor: '#DB2777',
+    backgroundColor: '#FCE7F3',
+  },
+  genderOptionText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#64748B',
+  },
+  genderOptionTextSelectedM: {
+    color: '#0D6EFD',
+    fontWeight: '700',
+  },
+  genderOptionTextSelectedF: {
+    color: '#DB2777',
+    fontWeight: '700',
+  },
+  errorText: {
+    fontSize: 12,
+    color: '#EF4444',
+    marginTop: 6,
+    fontWeight: '600',
+  },
+  modalButtonsRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 12,
+  },
+  modalButton: {
+    flex: 1,
+    height: 50,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    fontWeight: '700',
+  },
+  modalButtonCancel: {
+    backgroundColor: '#F1F5F9',
+  },
+  modalButtonSubmit: {
+    backgroundColor: '#0D6EFD',
+    shadowColor: '#0D6EFD',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  cancelButtonText: {
+    color: '#475569',
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  submitButtonText: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '700',
+  },
+});
