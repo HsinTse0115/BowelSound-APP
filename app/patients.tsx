@@ -79,6 +79,7 @@ export default function PatientsScreen() {
   const [name, setName] = useState('');
   const [age, setAge] = useState('');
   const [gender, setGender] = useState<'M' | 'F'>('M');
+  const [bedNumber, setBedNumber] = useState('');
   const [note, setNote] = useState('');
 
   // 表單驗證錯誤訊息狀態
@@ -132,24 +133,74 @@ export default function PatientsScreen() {
       name: name.trim(),
       age: ageNum,
       gender,
+      bedNumber: bedNumber.trim() || undefined,
       note: note.trim() || undefined,
     });
+
+    // 預留：將新增病患資料上傳至後端伺服器
+    // uploadPatientToBackend({ name: name.trim(), age: ageNum, gender, bedNumber: bedNumber.trim(), note: note.trim() });
 
     // 重置表單狀態並關閉彈窗
     setName('');
     setAge('');
     setGender('M');
+    setBedNumber('');
     setNote('');
     setNameError('');
     setAgeError('');
     setModalVisible(false);
   };
 
+  // ==================== 預留後端 API 串接範例 ====================
+  /**
+   * 範例：從後端 API 獲取最新的病患列表，並更新本地資料
+   */
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const fetchPatientsFromBackend = async () => {
+    try {
+      const response = await fetch('http://localhost:8000/api/patients');
+      if (!response.ok) throw new Error('取得病患列表失敗');
+      const data = await response.json();
+      console.log('取得後端病患資料成功:', data);
+    } catch (error) {
+      console.error('後端 API 讀取發生錯誤:', error);
+    }
+  };
+
+  /**
+   * 範例：將新新增的病患資料以 POST 請求提交給後端
+   */
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const uploadPatientToBackend = async (patientData: {
+    name: string;
+    age: number;
+    gender: 'M' | 'F';
+    bedNumber?: string;
+    note?: string;
+  }) => {
+    try {
+      const response = await fetch('http://localhost:8000/api/patients', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(patientData),
+      });
+      if (!response.ok) throw new Error('新增病患上傳失敗');
+      const result = await response.json();
+      console.log('後端病患新增成功:', result);
+    } catch (error) {
+      console.error('後端 API 提交發生錯誤:', error);
+    }
+  };
+  // =============================================================
+
   // 取消新增並重置表單狀態
   const handleCancel = () => {
     setName('');
     setAge('');
     setGender('M');
+    setBedNumber('');
     setNote('');
     setNameError('');
     setAgeError('');
@@ -244,7 +295,7 @@ export default function PatientsScreen() {
                     <Text style={styles.idText}>{patient.id}</Text>
                   </View>
                   <Text style={styles.demographicsText}>
-                    {patient.gender === 'M' ? '男' : '女'} · {patient.age} 歲
+                    {patient.gender === 'M' ? '男' : '女'} · {patient.age} 歲 · 床號: {patient.bedNumber || '無'}
                   </Text>
                 </View>
 
@@ -262,6 +313,11 @@ export default function PatientsScreen() {
               {isExpanded && (
                 <View style={styles.expandedDetail}>
                   {/* 備註與基本詳情 */}
+                  <Text style={styles.detailLabel}>病床號碼</Text>
+                  <Text style={styles.noteText}>
+                    {patient.bedNumber || '未分配床號'}
+                  </Text>
+
                   <Text style={styles.detailLabel}>臨床備註</Text>
                   <Text style={styles.noteText}>
                     {patient.note || '無臨床備註。'}
@@ -398,6 +454,20 @@ export default function PatientsScreen() {
                       }}
                     />
                     {ageError ? <Text style={styles.errorText}>{ageError}</Text> : null}
+                  </View>
+
+                  {/* 病床號碼欄位 */}
+                  <View style={styles.formField}>
+                    <Text style={styles.fieldLabel}>病床號碼</Text>
+                    <TextInput
+                      style={styles.input}
+                      placeholder="請輸入病床號碼 (例如: 302-1)"
+                      placeholderTextColor="#94A3B8"
+                      value={bedNumber}
+                      onChangeText={setBedNumber}
+                      autoCorrect={false}
+                      autoCapitalize="none"
+                    />
                   </View>
 
                   {/* 性別欄位 */}

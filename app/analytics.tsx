@@ -351,6 +351,37 @@ export default function AnalyticsScreen() {
                 </View>
               </View>
 
+              {/* 檢測參數欄位 */}
+              <View style={styles.paramSection}>
+                <Text style={styles.paramSectionTitle}>檢測生理與環境參數</Text>
+                <View style={styles.paramGrid}>
+                  <View style={styles.paramItem}>
+                    <Ionicons name="restaurant-outline" size={16} color="#64748B" />
+                    <Text style={styles.paramLabel}>飯後時間：</Text>
+                    <Text style={styles.paramValue}>{selectedRecord.mealTime || '未紀錄'}</Text>
+                  </View>
+                  <View style={styles.paramItem}>
+                    <Ionicons name="volume-medium-outline" size={16} color="#64748B" />
+                    <Text style={styles.paramLabel}>環境音量：</Text>
+                    <Text style={styles.paramValue}>{selectedRecord.decibelLevel ? `${selectedRecord.decibelLevel} dB` : '未紀錄'}</Text>
+                  </View>
+                  <View style={styles.paramItem}>
+                    <Ionicons name="cafe-outline" size={16} color="#64748B" />
+                    <Text style={styles.paramLabel}>咖啡因/茶：</Text>
+                    <Text style={styles.paramValue}>{selectedRecord.hasCaffeine ? '是' : '否'}</Text>
+                  </View>
+                  <View style={styles.paramItem}>
+                    <Ionicons name="warning-outline" size={16} color="#64748B" />
+                    <Text style={styles.paramLabel}>腸胃症狀：</Text>
+                    <Text style={styles.paramValue}>
+                      {selectedRecord.symptoms && selectedRecord.symptoms.length > 0 
+                        ? selectedRecord.symptoms.join(', ') 
+                        : '無症狀'}
+                    </Text>
+                  </View>
+                </View>
+              </View>
+
               {/* 詳細臨床診斷說明 */}
               <View
                 style={[

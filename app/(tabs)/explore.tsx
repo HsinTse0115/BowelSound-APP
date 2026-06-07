@@ -1,6 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
-import { SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { SafeAreaView, ScrollView, StyleSheet, Text, View, TouchableOpacity } from 'react-native';
+import { useRouter } from 'expo-router';
+import { useApp } from '../../context/AppContext';
 
 const summaryItems = [
   {
@@ -32,6 +34,38 @@ const summaryItems = [
 const workflowItems = ['確認患者身分與感測器位置', '完成腸音採集並保留原始波形', '檢視 AI 推論摘要與異常提示'];
 
 export default function SummaryScreen() {
+  const router = useRouter();
+  const { records, patients } = useApp();
+
+  // 取得最新紀錄，新到舊排序
+  const sortedRecords = [...records].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+  const getStatusTag = (status: 'normal' | 'hyper' | 'hypo') => {
+    switch (status) {
+      case 'normal':
+        return { label: '正常', color: '#10B981', bg: '#E6F8F3' };
+      case 'hyper':
+        return { label: '亢進', color: '#EF4444', bg: '#FEF2F2' };
+      case 'hypo':
+        return { label: '減弱', color: '#F59E0B', bg: '#FEF3C7' };
+    }
+  };
+
+  const formatDate = (isoString: string) => {
+    try {
+      const date = new Date(isoString);
+      if (isNaN(date.getTime())) return isoString;
+      const y = date.getFullYear();
+      const m = String(date.getMonth() + 1).padStart(2, '0');
+      const d = String(date.getDate()).padStart(2, '0');
+      const hr = String(date.getHours()).padStart(2, '0');
+      const min = String(date.getMinutes()).padStart(2, '0');
+      return `${y}/${m}/${d} ${hr}:${min}`;
+    } catch {
+      return isoString;
+    }
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
@@ -74,6 +108,57 @@ export default function SummaryScreen() {
               </View>
             ))}
           </View>
+        </View>
+
+        {/* 最近檢測歷史區塊 */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>最近檢測歷史</Text>
+          {sortedRecords.length === 0 ? (
+            <View style={styles.emptyList}>
+              <Ionicons name="folder-open-outline" size={40} color="#94A3B8" />
+              <Text style={styles.emptyText}>尚無任何檢測紀錄</Text>
+            </View>
+          ) : (
+            <View style={styles.recordList}>
+              {sortedRecords.map(item => {
+                const patient = patients.find(p => p.id === item.patientId);
+                const tag = getStatusTag(item.aiResult.status);
+                return (
+                  <TouchableOpacity
+                    key={item.id}
+                    style={styles.recordCard}
+                    onPress={() => router.push({ pathname: '/analytics', params: { recordId: item.id } })}
+                    activeOpacity={0.7}
+                  >
+                    <View style={styles.recordCardLeft}>
+                      <View style={styles.avatarContainer}>
+                        <Text style={styles.avatarText}>
+                          {patient ? patient.name.charAt(0) : '?'}
+                        </Text>
+                      </View>
+                      <View style={styles.recordMeta}>
+                        <View style={styles.recordNameRow}>
+                          <Text style={styles.patientName}>{patient ? patient.name : '未知患者'}</Text>
+                          {patient?.bedNumber && (
+                            <View style={styles.bedBadge}>
+                              <Text style={styles.bedText}>{patient.bedNumber} 床</Text>
+                            </View>
+                          )}
+                        </View>
+                        <Text style={styles.recordTime}>{formatDate(item.createdAt)}</Text>
+                      </View>
+                    </View>
+                    <View style={styles.recordCardRight}>
+                      <View style={[styles.statusTag, { backgroundColor: tag.bg }]}>
+                        <Text style={[styles.statusTagText, { color: tag.color }]}>{tag.label}</Text>
+                      </View>
+                      <Ionicons name="chevron-forward" size={16} color="#94A3B8" style={{ marginLeft: 8 }} />
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          )}
         </View>
 
         <View style={styles.infoBanner}>
@@ -239,5 +324,100 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#64748B',
     lineHeight: 18,
+  },
+  emptyList: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    padding: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  emptyText: {
+    color: '#64748B',
+    fontSize: 15,
+    marginTop: 8,
+    fontWeight: '500',
+  },
+  recordList: {
+    gap: 12,
+  },
+  recordCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#FFFFFF',
+    padding: 16,
+    borderRadius: 20,
+    shadowColor: '#94A3B8',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.06,
+    shadowRadius: 10,
+    elevation: 2,
+    borderWidth: 1,
+    borderColor: '#F1F5F9',
+  },
+  recordCardLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  avatarContainer: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#F1F5F9',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  avatarText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#475569',
+  },
+  recordMeta: {
+    flex: 1,
+  },
+  recordNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  patientName: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#1E293B',
+    marginRight: 8,
+  },
+  bedBadge: {
+    backgroundColor: '#F1F5F9',
+    borderRadius: 6,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+  },
+  bedText: {
+    fontSize: 11,
+    color: '#64748B',
+    fontWeight: '600',
+  },
+  recordTime: {
+    fontSize: 12,
+    color: '#94A3B8',
+    fontWeight: '500',
+  },
+  recordCardRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  statusTag: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  statusTagText: {
+    fontSize: 12,
+    fontWeight: '700',
   },
 });

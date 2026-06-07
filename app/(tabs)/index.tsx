@@ -69,6 +69,14 @@ export default function HomeScreen() {
             <Text style={styles.menuTitle}>個人資料</Text>
             <Text style={styles.menuDesc}>受試者基本資料設定</Text>
           </TouchableOpacity>
+
+          <TouchableOpacity style={styles.menuCard} onPress={() => router.push('/education' as any)} activeOpacity={0.7}>
+            <View style={[styles.iconContainer, { backgroundColor: '#EBF7FF' }]}>
+              <Ionicons name="book" size={32} color="#0284C7" />
+            </View>
+            <Text style={styles.menuTitle}>衛教資訊</Text>
+            <Text style={styles.menuDesc}>腸道保健與飲食指引</Text>
+          </TouchableOpacity>
         </View>
 
         {/* 底部系統狀態提示區塊 */}

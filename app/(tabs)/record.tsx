@@ -22,8 +22,12 @@ export default function RecordScreen() {
   const [seconds, setSeconds] = useState(0); // 記錄錄音的總秒數
   const [hasCaffeine, setHasCaffeine] = useState(false);
   const [selectedSymptoms, setSelectedSymptoms] = useState<string[]>([]);
+  const [micPermission, setMicPermission] = useState('已授權'); // eslint-disable-line @typescript-eslint/no-unused-vars
+  const [envVolume, setEnvVolume] = useState(35); // 單位為 dB
+  const [mealTime, setMealTime] = useState('空腹');
 
   const symptomOptions = ['無症狀', '脹氣', '腹痛', '便秘', '腹瀉'];
+  const mealTimeOptions = ['空腹', '飯後1小時內', '飯後1-2小時', '飯後2小時以上'];
 
   const toggleSymptom = (symp: string) => {
     setSelectedSymptoms(prev => {
@@ -49,14 +53,14 @@ export default function RecordScreen() {
     const finalDuration = overrideDuration !== undefined ? overrideDuration : seconds;
     const duration = Math.max(1, finalDuration);
 
-    // 呼叫 AppContext 中的 addRecord 儲存資料，包含咖啡因與腸胃症狀
-    const newRecord = addRecord(selectedPatientId, duration, hasCaffeine, selectedSymptoms);
+    // 呼叫 AppContext 中的 addRecord 儲存資料，包含咖啡因、腸胃症狀、飯後時間與環境分貝
+    const newRecord = addRecord(selectedPatientId, duration, hasCaffeine, selectedSymptoms, mealTime, envVolume);
 
     // 重置錄音前狀態
     setHasCaffeine(false);
     setSelectedSymptoms([]);
 
-    // 跳出成功提示對話框，引導用戶進行下一步操作
+    // 跳出成功提示對話框，引引導用戶進行下一步操作
     Alert.alert(
       '腸音採集已儲存！',
       'AI 分析已生成',
@@ -79,7 +83,7 @@ export default function RecordScreen() {
       ],
       { cancelable: false }
     );
-  }, [selectedPatientId, seconds, addRecord, router, hasCaffeine, selectedSymptoms]);
+  }, [selectedPatientId, seconds, addRecord, router, hasCaffeine, selectedSymptoms, mealTime, envVolume]);
 
   // 計時器邏輯：當 isRecording 改變時啟動或清除計時器
   useEffect(() => {
@@ -114,6 +118,78 @@ export default function RecordScreen() {
     const displaySeconds = (totalSeconds % 60).toString().padStart(2, '0');
     return `${minutes}:${displaySeconds}`;
   };
+
+  // 模擬環境音量微幅起伏 (可高達 55 dB，模擬環境音量警示)
+  useEffect(() => {
+    if (!isRecording) {
+      const interval = setInterval(() => {
+        setEnvVolume(prev => {
+          // 80% 機率微調，20% 機率較大波動
+          const isLarge = Math.random() < 0.2;
+          const range = isLarge ? 9 : 3;
+          const offset = isLarge ? 4 : 1;
+          const change = Math.floor(Math.random() * range) - offset;
+          const next = prev + change;
+          // 限制分貝在 30 ~ 55 dB 區間
+          return Math.max(30, Math.min(55, next));
+        });
+      }, 2000);
+      return () => clearInterval(interval);
+    }
+  }, [isRecording]);
+
+  // ==================== 預留後端 API 串接範例 ====================
+  /**
+   * 範例函數：上傳腸音音訊檔與生理數據至後端，並取得 AI 診斷 JSON
+   * @param audioUri 音訊檔案本地 URI 路徑
+   */
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const uploadBowelRecordAndAnalyze = async (audioUri: string) => {
+    try {
+      // 1. 建立 Multipart 表單 (對應系統架構圖: 1. 上傳音訊 + 飲食狀態 + 個資參數)
+      const formData = new FormData();
+      
+      // 加入二進位音訊檔案
+      formData.append('audio', {
+        uri: audioUri,
+        name: 'bowel_sound.wav',
+        type: 'audio/wav',
+      } as any);
+
+      // 加入錄音前問卷參數 (狀態紀錄表單)
+      formData.append('patientId', selectedPatientId || '');
+      formData.append('hasCaffeine', String(hasCaffeine));
+      formData.append('symptoms', JSON.stringify(selectedSymptoms));
+      formData.append('duration', String(seconds));
+      formData.append('mealTime', mealTime);
+      formData.append('decibelLevel', String(envVolume));
+      
+      // 若需要受試者個資，可自 Context 中一併打包上傳
+      formData.append('patientName', selectedPatient?.name || '');
+
+      // 2. 發送 API 請求
+      const response = await fetch('http://localhost:8000/api/analyze', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+        body: formData,
+      });
+
+      if (!response.ok) throw new Error('後端 AI 模型辨識失敗');
+      
+      // 3. 讀取回傳結果 (對應系統架構圖: 6. 回傳 AI 辨識結果 JSON)
+      const result = await response.json();
+      console.log('AI 診斷回傳資料:', result);
+
+      // 4. 更新前端狀態 (範例說明如何使用 set 函式更新)
+      // 例如：將回傳結果寫入全域/本地 State 以在 UI 進行圖表與報告的更新
+      
+    } catch (error) {
+      console.error('上傳腸音至後端時發生錯誤:', error);
+    }
+  };
+  // =============================================================
 
   // 點擊按鈕的處理邏輯
   const handleRecordPress = () => {
@@ -202,16 +278,45 @@ export default function RecordScreen() {
           </TouchableOpacity>
 
           {/* 環境與麥克風狀態 */}
-          <View style={styles.statusBox}>
-            <Text style={styles.statusBoxText}>🎤 麥克風權限：🟢 已授權</Text>
-            <Text style={styles.statusBoxText}>🔊 當前環境音量：🟢 35 dB</Text>
+          <View style={[styles.statusBox, envVolume >= 50 && styles.statusBoxWarning]}>
+            <Text style={[styles.statusBoxText, envVolume >= 50 && styles.statusBoxWarningText]}>
+              🎤 麥克風權限：{micPermission === '已授權' ? '🟢 已授權' : '🔴 未授權'}
+            </Text>
+            <Text style={[styles.statusBoxText, envVolume >= 50 && styles.statusBoxWarningText]}>
+              🔊 當前環境音量：{envVolume >= 50 ? `🔴 ${envVolume} dB` : `🟢 ${envVolume} dB`}
+            </Text>
           </View>
+
+          {envVolume >= 50 && (
+            <View style={styles.warningAlertBox}>
+              <Ionicons name="warning" size={20} color="#EF4444" style={{ marginRight: 8 }} />
+              <Text style={styles.warningAlertText}>🔴 環境音量過高 (≥ 50 dB)，請移至安靜處以確保量測品質</Text>
+            </View>
+          )}
 
           {/* 狀態確認 */}
           <Text style={styles.sectionTitle}>錄音前狀態確認</Text>
           <View style={styles.rowItem}>
             <Text style={styles.rowItemText}>☕ 錄音前喝咖啡/茶</Text>
             <Switch value={hasCaffeine} onValueChange={setHasCaffeine} trackColor={{ true: '#0D6EFD' }} />
+          </View>
+
+          {/* 飯後時間確認 */}
+          <Text style={styles.sectionTitle}>🍽️ 飯後時間</Text>
+          <View style={styles.chipContainer}>
+            {mealTimeOptions.map(option => {
+              const isSelected = mealTime === option;
+              return (
+                <TouchableOpacity 
+                  key={option} 
+                  style={[styles.chip, isSelected && styles.chipSelected]} 
+                  onPress={() => setMealTime(option)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={isSelected ? styles.chipTextSelected : styles.chipText}>{option}</Text>
+                </TouchableOpacity>
+              );
+            })}
           </View>
 
           {/* 症狀確認 */}
@@ -237,9 +342,10 @@ export default function RecordScreen() {
             <TouchableOpacity 
               style={[
                 styles.recordButton, 
-                !selectedPatientId && styles.recordButtonDisabled
+                (!selectedPatientId || envVolume >= 50) && styles.recordButtonDisabled
               ]}
               onPress={handleRecordPress}
+              disabled={!selectedPatientId || envVolume >= 50}
               activeOpacity={0.7}
             >
               <Text style={styles.buttonText}>開始檢測</Text>

@@ -13,6 +13,8 @@ export interface Patient {
   age: number;
   /** 性別 */
   gender: 'M' | 'F';
+  /** 病床號碼 */
+  bedNumber?: string;
   /** 臨床備註 */
   note?: string;
   /** 建立時間 (ISO 8601 格式字串) */
@@ -33,6 +35,10 @@ export interface BowelRecord {
   hasCaffeine?: boolean;
   /** 當前腸胃症狀 */
   symptoms?: string[];
+  /** 飯後時間 */
+  mealTime?: string;
+  /** 採集時環境音量 (分貝) */
+  decibelLevel?: number;
   /** 採集時間 (ISO 8601 格式字串) */
   createdAt: string;
   /** AI 診斷結果 (模擬數據) */
@@ -70,6 +76,10 @@ export interface AppSettings {
 export interface UserProfile {
   /** 受試者代號 / 暱稱 */
   name: string;
+  /** 年齡 */
+  age: string;
+  /** 性別 */
+  gender: 'M' | 'F' | '';
   /** 身高 (cm) */
   height: string;
   /** 體重 (kg) */
@@ -93,7 +103,7 @@ export interface AppContextType {
   /** 新增病患 */
   addPatient: (patient: Omit<Patient, 'id' | 'createdAt'>) => void;
   /** 新增腸音紀錄，並回傳新增的紀錄物件 */
-  addRecord: (patientId: string, duration: number, hasCaffeine: boolean, symptoms: string[]) => BowelRecord;
+  addRecord: (patientId: string, duration: number, hasCaffeine: boolean, symptoms: string[], mealTime: string, decibelLevel: number) => BowelRecord;
   /** 更新系統設定 (支援局部更新) */
   updateSettings: (settings: Partial<AppSettings>) => void;
   /** 儲存/更新受試者個人資料 */
@@ -149,6 +159,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       name: '王小明',
       age: 28,
       gender: 'M',
+      bedNumber: '302-1',
       note: '例行性健康檢查，無特殊腸胃症狀。',
       createdAt: '2026-05-30T10:00:00Z',
     },
@@ -157,6 +168,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       name: '李美玲',
       age: 45,
       gender: 'F',
+      bedNumber: '302-2',
       note: '主訴近日腹脹與消化不良。',
       createdAt: '2026-05-30T11:30:00Z',
     },
@@ -165,6 +177,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       name: '張家豪',
       age: 62,
       gender: 'M',
+      bedNumber: '305-1',
       note: '手術後腸道功能恢復監測。',
       createdAt: '2026-05-30T14:15:00Z',
     },
@@ -176,6 +189,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       id: 'R-2001',
       patientId: 'P-1001',
       duration: 10,
+      hasCaffeine: false,
+      symptoms: ['無症狀'],
+      mealTime: '空腹',
+      decibelLevel: 35,
       createdAt: '2026-05-30T10:05:00Z',
       aiResult: {
         frequency: 6,
@@ -190,12 +207,16 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       id: 'R-2002',
       patientId: 'P-1002',
       duration: 30,
+      hasCaffeine: true,
+      symptoms: ['脹氣'],
+      mealTime: '飯後 1 小時內',
+      decibelLevel: 42,
       createdAt: '2026-05-30T11:40:00Z',
       aiResult: {
         frequency: 15,
         status: 'hyper',
         confidence: 0.88,
-        notes: '腸鳴音亢進 (約 15 次/分)，可能與消化不良或輕微腸胃發炎相關。',
+        notes: '腸鳴音慢速亢進 (約 15 次/分)，可能與消化不良或輕微腸胃發炎相關。',
         waveformMockData: generateWaveformMockData(50),
         spectrogramMockData: generateSpectrogramMockData(10, 10),
       },
@@ -289,7 +310,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   /**
    * 新增腸音紀錄，自動隨機/遞增生成 ID，並模擬 AI 診斷結果
    */
-  const addRecord = (patientId: string, duration: number, hasCaffeine: boolean, symptoms: string[]): BowelRecord => {
+  const addRecord = (patientId: string, duration: number, hasCaffeine: boolean, symptoms: string[], mealTime: string, decibelLevel: number): BowelRecord => {
     const newId = `R-${nextRecordIdRef.current}`;
     nextRecordIdRef.current += 1;
 
@@ -319,6 +340,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       duration,
       hasCaffeine,
       symptoms,
+      mealTime,
+      decibelLevel,
       createdAt: new Date().toISOString(),
       aiResult: {
         frequency,

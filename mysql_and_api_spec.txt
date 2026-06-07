@@ -1,0 +1,123 @@
+========================================================================
+    腸音辨識監測系統 - MySQL 資料庫、API 欄位清單與本地端 AI 運算架構說明書
+========================================================================
+
+本規格書定義了「腸音辨識監測 App」前後端串接的 API 欄位規範、MySQL 資料庫表結構，
+以及後端本地端 AI 模型運算的關鍵架構限制說明。
+
+------------------------------------------------------------------------
+【一、 後端 AI 與音訊處理架構限制說明】 (Crucial Architecture Constraint)
+------------------------------------------------------------------------
+1. 音訊檔案存放方式：
+   - 硬體 (如 ESP32) 或 App 採集接收到的腸音原始錄音檔，上傳至後端伺服器後，將「直接儲存於後端伺服器本機的特定檔案資料夾中」 (例如 `/var/www/bowel_sounds/uploads/`)。
+2. 資料庫儲存原則：
+   - MySQL 資料庫中「絕對不儲存實體音訊二進位數據 (BLOB)」以減輕資料庫存取負擔，資料庫內僅以 VARCHAR 類型記錄音訊檔在後端伺服器的「本地端實體檔案路徑」 (例如 `audio_file_path`)。
+3. AI 模型運算機制：
+   - CNN (卷積神經網路) 腸鳴音辨識模型直接對該本地端音訊檔進行讀取與特徵提取 (轉換為 Mel Spectrogram 頻譜圖)，並於後端伺服器本地端直接執行推論運算，運算結束後再將頻譜數值及預測結果寫入資料庫，並回傳 JSON 結果給 App。
+
+------------------------------------------------------------------------
+【二、 MySQL 資料庫表設計與欄位異動】
+------------------------------------------------------------------------
+
+1. `patients` (臨床病患資料表) - 新增病床號碼 `bed_number`
+   +--------------+------------------+---------------+-------------+------------------------------------+
+   | 欄位名稱     | MySQL 資料型態   | 鍵與約束      | 預設值      | 欄位說明                           |
+   +--------------+------------------+---------------+-------------+------------------------------------+
+   | patient_id   | VARCHAR(50)      | PRIMARY KEY   | 無          | 病患識別碼 (例: P-1001)            |
+   | name         | VARCHAR(100)     | NOT NULL      | 無          | 姓名                               |
+   | age          | INT              | NOT NULL      | 無          | 年齡                               |
+   | gender       | ENUM('M', 'F')   | NOT NULL      | 無          | 性別 ('M': 男, 'F': 女)            |
+   | bed_number   | VARCHAR(50)      | NULL          | NULL        | [NEW] 病床號碼 (例: 302-1)         |
+   | note         | TEXT             | NULL          | NULL        | 臨床備註說明                       |
+   | created_at   | TIMESTAMP        | NOT NULL      | CURRENT_TS  | 建立時間                           |
+   | updated_at   | TIMESTAMP        | NOT NULL      | CURRENT_TS  | 最後修改時間 (ON UPDATE CURRENT_TS)|
+   +--------------+------------------+---------------+-------------+------------------------------------+
+
+2. `bowel_records` (腸音採集紀錄表) - 資料庫中儲存音訊本地路徑，並包含飲食及環境參數
+   +-----------------+-----------------+---------------+-------------+------------------------------------+
+   | 欄位名稱        | MySQL 資料型態  | 鍵與約束      | 預設值      | 欄位說明                           |
+   +-----------------+-----------------+---------------+-------------+------------------------------------+
+   | record_id       | VARCHAR(50)     | PRIMARY KEY   | 無          | 紀錄唯一識別碼 (例: R-2001)        |
+   | patient_id      | VARCHAR(50)     | FOREIGN KEY   | 無          | 關聯之病患 ID                      |
+   | duration        | INT             | NOT NULL      | 無          | 實際錄音時長 (秒)                  |
+   | has_caffeine    | TINYINT(1)      | NOT NULL      | 0           | 錄音前喝咖啡/茶 (0: 否, 1: 是)     |
+   | symptoms        | JSON            | NULL          | NULL        | 腸胃症狀複選，存放 JSON Array      |
+   | meal_time       | VARCHAR(50)     | NULL          | NULL        | [NEW] 飯後時間狀態 (例: 空腹)      |
+   | decibel_level   | INT             | NULL          | NULL        | [NEW] 採集時環境音量 (分貝)        |
+   | audio_file_path | VARCHAR(255)    | NULL          | NULL        | 伺服器本地端的音訊檔案實體路徑      |
+   | created_at      | TIMESTAMP       | NOT NULL      | CURRENT_TS  | 採集日期與時間                     |
+   +-----------------+-----------------+---------------+-------------+------------------------------------+
+
+3. `users` (受試者個人資料表，對應 App 個人資料頁面) - 支援年齡與性別
+   +--------------+------------------+---------------+-------------+------------------------------------+
+   | 欄位名稱     | MySQL 資料型態   | 鍵與約束      | 預設值      | 欄位說明                           |
+   +--------------+------------------+---------------+-------------+------------------------------------+
+   | user_id      | INT AUTO_INCREMENT| PRIMARY KEY  | 無          | 自增識別主鍵                       |
+   | name         | VARCHAR(100)     | NOT NULL      | 無          | 受試者代號 / 暱稱                  |
+   | age          | INT              | NULL          | NULL        | [NEW] 年齡                         |
+   | gender       | ENUM('M', 'F')   | NULL          | NULL        | [NEW] 性別 ('M': 男, 'F': 女)      |
+   | height       | DECIMAL(5,2)     | NULL          | NULL        | 身高 (cm)                          |
+   | weight       | DECIMAL(5,2)     | NULL          | NULL        | 體重 (kg)                          |
+   | meds_history | JSON             | NULL          | NULL        | 病史與用藥 JSON Array              |
+   | created_at   | TIMESTAMP        | NOT NULL      | CURRENT_TS  | 建立時間                           |
+   | updated_at   | TIMESTAMP        | NOT NULL      | CURRENT_TS  | 最後修改時間 (ON UPDATE CURRENT_TS)|
+   +--------------+------------------+---------------+-------------+------------------------------------+
+
+4. `ai_results` (AI 診斷結果表)
+   - 欄位包含：`record_id` (主/外鍵), `frequency` (腸鳴音頻率次/分), `status` (正常/亢進/減弱 ENUM), `confidence` (信心度), `notes` (臨床建議), `waveform_data` (LONGTEXT JSON 波形點), `spectrogram_data` (LONGTEXT JSON 二維頻譜熱圖)。
+
+------------------------------------------------------------------------
+【三、 前後端 API 串接規格清單 (JSON & Multipart)】
+------------------------------------------------------------------------
+
+1. 病患管理 API [GET /api/patients] & [POST /api/patients]
+   - POST 傳入參數 (JSON)：
+     * name: string - 姓名 (必填)
+     * age: number - 年齡 (必填)
+     * gender: 'M' | 'F' - 性別 (必填)
+     * bedNumber: string - 病床號碼 (選填)
+     * note: string - 臨床備註 (選填)
+
+2. 腸音上傳分析 API [POST /api/analyze]
+   - 傳輸格式：multipart/form-data
+   - Request 參數：
+     * audio: FILE (音訊實體檔案，後端儲存於本地目錄，並把實體路徑寫入資料庫 `audio_file_path`)
+     * patientId: string - 關聯的病患 ID (例: P-1001)
+     * hasCaffeine: string ("true"/"false") - 是否攝取咖啡因
+     * symptoms: string (JSON 字串，如 '["脹氣", "腹痛"]') - 當前腸胃症狀
+     * duration: string (秒數，如 "10") - 錄音時長
+     * mealTime: string - 飯後時間狀態 (例: "空腹", "飯後1小時內")
+     * decibelLevel: string - 採集時環境音量分貝數 (例: "35")
+   - Response 欄位 (JSON)：
+     * record_id: string - 生成的紀錄 ID (例: R-2005)
+     * patient_id: string - 關聯的病患 ID
+     * duration: number - 錄音秒數
+     * has_caffeine: boolean - 是否攝取咖啡因
+     * symptoms: string[] - 腸胃症狀列表
+     * mealTime: string - 飯後時間狀態
+     * decibelLevel: number - 採集環境音量分貝
+     * created_at: string - 存檔時間 (ISO 8601)
+     * aiResult: {
+         frequency: number - 腸鳴音頻率 (次/分)
+         status: 'normal' | 'hyper' | 'hypo' - 狀態分類
+         confidence: number - 信心度 (0 ~ 1)
+         notes: string - 臨床診斷提示
+         waveformMockData: number[] - 50 點時域波形序列
+         spectrogramMockData: number[][] - 10x10 二維頻譜圖數據
+       }
+
+3. 個人資料 API [GET /api/profile/{subject_code}] & [POST /api/profile]
+   - GET /api/profile/{subject_code} Response (JSON):
+     * name: string - 受試者代號或暱稱
+     * age: number | null - 年齡
+     * gender: 'M' | 'F' | '' | null - 性別
+     * height: number | null - 身高 (cm)
+     * weight: number | null - 體重 (kg)
+     * selectedMeds: string[] - 病史與用藥複選列表
+   - POST /api/profile Request Body (JSON):
+     * name: string - 受試者代號或暱稱 (必填)
+     * age: number | null - 年齡 (選填)
+     * gender: 'M' | 'F' | '' | null - 性別 (選填)
+     * height: number | null - 身高 (選填)
+     * weight: number | null - 體重 (選填)
+     * selectedMeds: string[] - 病史與用藥複選列表 (選填)

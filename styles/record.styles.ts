@@ -279,6 +279,30 @@ export const styles = StyleSheet.create({
     marginBottom: 10,
     alignSelf: 'flex-start',
   },
+  statusBoxWarning: {
+    backgroundColor: '#FEF2F2',
+    borderColor: '#FCA5A5',
+  },
+  statusBoxWarningText: {
+    color: '#EF4444',
+  },
+  warningAlertBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FEF2F2',
+    borderWidth: 1.5,
+    borderColor: '#EF4444',
+    borderRadius: 14,
+    padding: 12,
+    width: '100%',
+    marginBottom: 20,
+  },
+  warningAlertText: {
+    color: '#EF4444',
+    fontSize: 14,
+    fontWeight: '700',
+    flex: 1,
+  },
   prepContainer: {
     width: '100%',
     alignItems: 'center',

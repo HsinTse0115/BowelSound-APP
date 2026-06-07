@@ -400,4 +400,38 @@ export const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
   },
+  paramSection: {
+    backgroundColor: '#F8FAFC',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 20,
+    borderWidth: 1.5,
+    borderColor: '#E2E8F0',
+  },
+  paramSectionTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#334155',
+    marginBottom: 12,
+  },
+  paramGrid: {
+    gap: 10,
+  },
+  paramItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  paramLabel: {
+    fontSize: 13,
+    color: '#64748B',
+    fontWeight: '600',
+    marginLeft: 6,
+    width: 80,
+  },
+  paramValue: {
+    fontSize: 13,
+    color: '#334155',
+    fontWeight: '700',
+    flex: 1,
+  },
 });

@@ -1,0 +1,94 @@
+========================================================================
+            腸音辨識監測 App - 後端 API 串接與資料欄位規格清單
+========================================================================
+
+本規格書依據前端 React Native App 中受試者個資建置、錄音前置狀態篩選
+以及 AI 腸音診斷分析所設計，定義了前後端傳輸的 API 欄位規範。
+
+------------------------------------------------------------------------
+一、 受試者個人資料 API (Profile API)
+------------------------------------------------------------------------
+用於建立、載入與儲存受試者的基本資料。
+
+1. 新增/更新個人資料 [POST /api/profile]
+   - 請求資料格式：application/json
+   - 欄位清單：
+     * name: VARCHAR(50) 
+       - 說明：受試者代號或暱稱 (非空)
+     * age: INT
+       - 說明：年齡 (可空)
+     * gender: ENUM('M', 'F')
+       - 說明：性別，'M': 男, 'F': 女 (可空)
+     * height: DECIMAL(5,2) 
+       - 說明：身高，單位 cm (可空)
+     * weight: DECIMAL(5,2) 
+       - 說明：體重，單位 kg (可空)
+     * selectedMeds: ARRAY [VARCHAR]
+       - 說明：病史與用藥複選列表，例：["腸躁症", "胃食道逆流"] (可空)
+
+2. 讀取個人資料 [GET /api/profile/{subject_code}]
+   - 回傳資料格式：application/json
+   - 欄位清單：
+     * name: VARCHAR(50) - 受試者代號或暱稱
+     * age: INT - 年齡 (可空)
+     * gender: ENUM('M', 'F') - 性別 (可空)
+     * height: DECIMAL(5,2) - 身高 (cm)
+     * weight: DECIMAL(5,2) - 體重 (kg)
+     * bmi: DECIMAL(3,1) - 身體質量指數 (自動計算，例：21.3)
+     * selectedMeds: ARRAY [VARCHAR] - 病史與用藥複選列表
+     * created_at: TIMESTAMP - 帳號建立時間
+
+------------------------------------------------------------------------
+二、 腸音採集上傳與 AI 辨識分析 API (Analyze API)
+------------------------------------------------------------------------
+上傳腸音音訊檔以及採集當下的生理/環境輔助參數，回傳 AI 模型的檢測分析結果。
+
+1. 腸音上傳分析 [POST /api/analyze]
+   - 請求資料格式：multipart/form-data
+   - 欄位清單 (Request)：
+     * audio: FILE (Binary) 
+       - 說明：採集的腸音音訊檔案，格式如 wav, m4a, mp3
+     * patientId: VARCHAR(50) 
+       - 說明：關聯之臨床病患唯一識別碼 (例：P-1001)
+     * hasCaffeine: BOOLEAN (或 0/1)
+       - 說明：錄音前是否攝取咖啡因或茶 (true: 是, false: 否)
+     * symptoms: ARRAY [VARCHAR] (以 JSON 字串傳送)
+       - 說明：受試者當下腸胃症狀複選，例：["脹氣", "腹痛"]
+     * duration: INT
+       - 說明：實際錄音秒數
+     * mealTime: VARCHAR(50)
+       - 說明：受試者錄音前飲食/飯後時間狀態 (如：'空腹', '飯後1小時內', '飯後1-2小時', '飯後2小時以上')
+     * decibelLevel: INT
+       - 說明：採集錄音當下的環境音量 (分貝)
+
+   - 回傳資料格式 (Response JSON)：
+     * record_id: VARCHAR(50)
+       - 說明：資料庫中產生的紀錄唯一 ID (例：R-2005)
+     * patient_id: VARCHAR(50)
+       - 說明：此紀錄綁定之病患 ID
+     * duration: INT
+       - 說明：錄音秒數
+     * has_caffeine: BOOLEAN
+       - 說明：錄音前是否喝咖啡/茶
+     * symptoms: ARRAY [VARCHAR]
+       - 說明：上傳的腸胃症狀列表
+     * mealTime: VARCHAR(50)
+       - 說明：上傳的飲食時間狀態
+     * decibelLevel: INT
+       - 說明：錄音當下環境音量分貝
+     * created_at: TIMESTAMP
+       - 說明：紀錄存檔時間
+     * aiResult: OBJECT
+       - 說明：AI 模型推論結果物件，包含下述子欄位：
+         + frequency: INT
+           - 說明：AI 辨識出的腸鳴音頻率 (次/分鐘)
+         + status: ENUM ('normal', 'hyper', 'hypo')
+           - 說明：診斷分類結果 (normal:正常, hyper:亢進, hypo:減弱)
+         + confidence: DECIMAL(5,4)
+           - 說明：AI 模型判讀的信心度 (介於 0.0000 至 1.0000)
+         + notes: TEXT
+           - 說明：AI 自動產生的臨床診斷分析提示與摘要
+         + waveformMockData: ARRAY [FLOAT]
+           - 說明：用於繪製時域波形圖的數據點數組，長度為 50，值介於 [-1.0, 1.0]
+         + spectrogramMockData: ARRAY [ARRAY [INT]]
+           - 說明：10x10 的二維陣列能量矩陣，用於繪製頻譜熱力圖，每個元素介於 [0, 255]
