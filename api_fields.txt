@@ -82,12 +82,12 @@
        - 說明：AI 模型推論結果物件，包含下述子欄位：
          + frequency: INT
            - 說明：AI 辨識出的腸鳴音頻率 (次/分鐘)
-         + status: ENUM ('normal', 'hyper', 'hypo')
-           - 說明：診斷分類結果 (normal:正常, hyper:亢進, hypo:減弱)
+         + status: ENUM ('normal', 'abnormal')
+           - 說明：診斷分類結果 (normal:正常, abnormal:異常。異常成因包括：亢進、低下、腸子無蠕動、頻率次數與音頻特徵異常)
          + confidence: DECIMAL(5,4)
            - 說明：AI 模型判讀的信心度 (介於 0.0000 至 1.0000)
          + notes: TEXT
-           - 說明：AI 自動產生的臨床診斷分析提示與摘要
+           - 說明：AI 自動產生的臨床診斷分析提示與摘要 (描述具體蠕動異常原因)
          + waveformMockData: ARRAY [FLOAT]
            - 說明：用於繪製時域波形圖的數據點數組，長度為 50，值介於 [-1.0, 1.0]
          + spectrogramMockData: ARRAY [ARRAY [INT]]

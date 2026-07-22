@@ -45,8 +45,8 @@ export interface BowelRecord {
   aiResult: {
     /** 腸鳴音頻率 (次/分鐘) */
     frequency: number;
-    /** 腸音分類狀態 (normal: 正常 / hyper: 亢進 / hypo: 減弱) */
-    status: 'normal' | 'hyper' | 'hypo';
+    /** 腸音分類狀態 (normal: 正常 / abnormal: 異常) */
+    status: 'normal' | 'abnormal';
     /** AI 信心度 (0 ~ 1) */
     confidence: number;
     /** 臨床提示與分析摘要 */
@@ -214,9 +214,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       createdAt: '2026-05-30T11:40:00Z',
       aiResult: {
         frequency: 15,
-        status: 'hyper',
+        status: 'abnormal',
         confidence: 0.88,
-        notes: '腸鳴音慢速亢進 (約 15 次/分)，可能與消化不良或輕微腸胃發炎相關。',
+        notes: '腸鳴音異常 (蠕動亢進，約 15 次/分)，音頻特徵明顯偏高，可能與消化不良或輕微腸胃發炎相關。',
         waveformMockData: generateWaveformMockData(50),
         spectrogramMockData: generateSpectrogramMockData(10, 10),
       },
@@ -228,9 +228,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       createdAt: '2026-05-30T14:30:00Z',
       aiResult: {
         frequency: 2,
-        status: 'hypo',
+        status: 'abnormal',
         confidence: 0.91,
-        notes: '腸鳴音減弱 (約 2 次/分)，術後正常蠕動恢復中，建議持續追蹤。',
+        notes: '腸鳴音異常 (蠕動低下，約 2 次/分)，音頻特徵偏向稀疏，術後正常蠕動恢復中，建議持續追蹤。',
         waveformMockData: generateWaveformMockData(50),
         spectrogramMockData: generateSpectrogramMockData(10, 10),
       },
@@ -314,21 +314,31 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const newId = `R-${nextRecordIdRef.current}`;
     nextRecordIdRef.current += 1;
 
-    // 隨機決定 AI 腸音診斷狀態 ('normal' | 'hyper' | 'hypo')
-    const statuses: ('normal' | 'hyper' | 'hypo')[] = ['normal', 'hyper', 'hypo'];
-    const status = statuses[Math.floor(Math.random() * statuses.length)];
+    // 隨機決定 AI 腸音診斷狀態 ('normal' | 'abnormal')
+    const status = Math.random() < 0.5 ? 'normal' : 'abnormal';
 
     let frequency = 6;
     let notes = '';
     if (status === 'normal') {
       frequency = Math.floor(4 + Math.random() * 6); // 4-9 次/分鐘
-      notes = `腸鳴音頻率正常 (約 ${frequency} 次/分)，腸胃活動良好。`;
-    } else if (status === 'hyper') {
-      frequency = Math.floor(10 + Math.random() * 9); // 10-18 次/分鐘
-      notes = `腸鳴音慢速亢進 (約 ${frequency} 次/分)，可能與消化不良或輕微腸胃發炎相關。`;
+      notes = `腸鳴音頻率正常 (約 ${frequency} 次/分)，音頻規律，腸胃活動良好。`;
     } else {
-      frequency = Math.floor(1 + Math.random() * 3); // 1-3 次/分鐘
-      notes = `腸鳴音慢速減弱 (約 ${frequency} 次/分)，需注意腸蠕動較慢情形。`;
+      // 異常判定基準：亢進、低下、無蠕動、次數與音頻異常
+      const abTypes = ['hyper', 'hypo', 'none', 'pitch'];
+      const abType = abTypes[Math.floor(Math.random() * abTypes.length)];
+      if (abType === 'hyper') {
+        frequency = Math.floor(10 + Math.random() * 9); // 10-18 次/分鐘
+        notes = `腸鳴音異常 (蠕動亢進，頻率約 ${frequency} 次/分)，音頻急促高昂，可能與消化不良、急性腸胃炎或飢餓相關。`;
+      } else if (abType === 'hypo') {
+        frequency = Math.floor(1 + Math.random() * 3); // 1-3 次/分鐘
+        notes = `腸鳴音異常 (蠕動低下，頻率約 ${frequency} 次/分)，音頻稀疏微弱，需注意消化停滯或術後腸蠕動遲緩情形。`;
+      } else if (abType === 'none') {
+        frequency = 0; // 無蠕動
+        notes = `腸鳴音異常 (腸道無蠕動，頻率為 0 次/分)，未偵測到明顯腸胃音，疑似腸麻痺或嚴重腸阻塞，建議密切觀察或就醫。`;
+      } else {
+        frequency = Math.floor(4 + Math.random() * 6); // 正常次數但音頻特徵異常
+        notes = `腸鳴音異常 (蠕動頻率約 ${frequency} 次/分，但音頻分佈異常)，雜音訊號顯著，建議重新採集或結合臨床症狀判定。`;
+      }
     }
 
     // AI 信心度 (0.8 至 0.98 之間)

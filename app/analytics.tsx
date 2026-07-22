@@ -101,19 +101,12 @@ export default function AnalyticsScreen() {
           bgColor: '#E6F8F3',
           icon: 'checkmark-circle-outline' as const,
         };
-      case 'hyper':
+      case 'abnormal':
         return {
-          label: '亢進 (Hyperactive)',
+          label: '異常 (Abnormal)',
           color: '#EF4444',
           bgColor: '#FEE2E2',
           icon: 'alert-circle-outline' as const,
-        };
-      case 'hypo':
-        return {
-          label: '減弱 (Hypoactive)',
-          color: '#F59E0B',
-          bgColor: '#FEF3C7',
-          icon: 'warning-outline' as const,
         };
       default:
         return {
@@ -492,12 +485,9 @@ export default function AnalyticsScreen() {
                 const recStatus = item.aiResult.status;
                 let recStatusLabel = '正常';
                 let recStatusColor = '#10B981';
-                if (recStatus === 'hyper') {
-                  recStatusLabel = '亢進';
+                if (recStatus === 'abnormal') {
+                  recStatusLabel = '異常';
                   recStatusColor = '#EF4444';
-                } else if (recStatus === 'hypo') {
-                  recStatusLabel = '減弱';
-                  recStatusColor = '#F59E0B';
                 }
 
                 return (

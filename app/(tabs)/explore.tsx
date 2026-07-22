@@ -40,14 +40,12 @@ export default function SummaryScreen() {
   // 取得最新紀錄，新到舊排序
   const sortedRecords = [...records].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
-  const getStatusTag = (status: 'normal' | 'hyper' | 'hypo') => {
+  const getStatusTag = (status: 'normal' | 'abnormal') => {
     switch (status) {
       case 'normal':
         return { label: '正常', color: '#10B981', bg: '#E6F8F3' };
-      case 'hyper':
-        return { label: '亢進', color: '#EF4444', bg: '#FEF2F2' };
-      case 'hypo':
-        return { label: '減弱', color: '#F59E0B', bg: '#FEF3C7' };
+      case 'abnormal':
+        return { label: '異常', color: '#EF4444', bg: '#FEF2F2' };
     }
   };
 

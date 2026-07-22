@@ -48,15 +48,10 @@ const STATUS_MAP = {
     tagStyle: styles.statusTagNormal,
     textStyle: styles.statusTagTextNormal,
   },
-  hyper: {
-    label: '亢進',
+  abnormal: {
+    label: '異常',
     tagStyle: styles.statusTagHyper,
     textStyle: styles.statusTagTextHyper,
-  },
-  hypo: {
-    label: '減弱',
-    tagStyle: styles.statusTagHypo,
-    textStyle: styles.statusTagTextHypo,
   },
 };
 

@@ -58,7 +58,7 @@ export default function EducationScreen() {
               <View style={styles.cardHeader}>
                 <View style={styles.cardTitleContainer}>
                   <Ionicons name="checkmark-circle" size={22} color="#10B981" />
-                  <Text style={styles.cardTitle}>正常腸鳴音</Text>
+                  <Text style={styles.cardTitle}>正常腸鳴音 (Normal)</Text>
                 </View>
                 <View style={[styles.badge, { backgroundColor: '#E6F8F3' }]}>
                   <Text style={[styles.badgeText, { color: '#10B981' }]}>健康狀態</Text>
@@ -71,9 +71,9 @@ export default function EducationScreen() {
                 <View style={styles.featureBox}>
                   <View style={styles.featureRow}>
                     <Ionicons name="stats-chart" size={14} color="#64748B" />
-                    <Text style={styles.featureLabel}>標準頻率：</Text>
+                    <Text style={styles.featureLabel}>標準判定基準：</Text>
                   </View>
-                  <Text style={styles.featureValue}>約每分鐘 4 至 9 次</Text>
+                  <Text style={styles.featureValue}>• 蠕動次數：每分鐘 4 至 9 次{"\n"}• 音頻特徵：規律低沉、起伏平穩</Text>
                 </View>
                 <View style={styles.clinicalTipBox}>
                   <View style={styles.clinicalTipTitleRow}>
@@ -87,12 +87,12 @@ export default function EducationScreen() {
               </View>
             </View>
 
-            {/* 2. 腸鳴音亢進 */}
+            {/* 2. 異常腸鳴音 */}
             <View style={styles.card}>
               <View style={styles.cardHeader}>
                 <View style={styles.cardTitleContainer}>
-                  <Ionicons name="trending-up" size={22} color="#EF4444" />
-                  <Text style={styles.cardTitle}>腸鳴音亢進</Text>
+                  <Ionicons name="alert-circle" size={22} color="#EF4444" />
+                  <Text style={styles.cardTitle}>異常腸鳴音 (Abnormal)</Text>
                 </View>
                 <View style={[styles.badge, { backgroundColor: '#FEF2F2' }]}>
                   <Text style={[styles.badgeText, { color: '#EF4444' }]}>注意異常</Text>
@@ -100,56 +100,29 @@ export default function EducationScreen() {
               </View>
               <View style={styles.cardContent}>
                 <Text style={styles.descriptionText}>
-                  腸道收縮與蠕動速度異常加快，聲音明亮且急促，可能伴隨頻繁的水流聲或金屬敲擊聲。
+                  腸道收縮力度、速度或聲響偏離正常生理範圍。本系統去除了複雜的爆裂音分類，簡化以四大異常指標為判讀基準：
                 </Text>
+                
                 <View style={styles.featureBox}>
                   <View style={styles.featureRow}>
-                    <Ionicons name="stats-chart" size={14} color="#64748B" />
-                    <Text style={styles.featureLabel}>標準頻率：</Text>
+                    <Ionicons name="git-commit" size={14} color="#EF4444" />
+                    <Text style={[styles.featureLabel, { color: '#EF4444' }]}>異常判斷四大基準：</Text>
                   </View>
-                  <Text style={styles.featureValue}>每分鐘 10 次以上</Text>
-                </View>
-                <View style={[styles.clinicalTipBox, { backgroundColor: '#FFF5F5', borderLeftColor: '#EF4444' }]}>
-                  <View style={styles.clinicalTipTitleRow}>
-                    <Ionicons name="alert-circle" size={14} color="#B91C1C" />
-                    <Text style={[styles.clinicalTipTitle, { color: '#B91C1C' }]}>常見原因與處置</Text>
-                  </View>
-                  <Text style={[styles.clinicalTipText, { color: '#991B1B' }]}>
-                    常見於急性腸胃炎、感染、飢餓、腸道局部阻塞早期或腹瀉。若有劇烈腹痛、嘔吐或血便，請立即就醫。
+                  <Text style={[styles.featureValue, { lineHeight: 22 }]}>
+                    1. **蠕動亢進**：每分鐘達 10 次以上，音頻尖銳急促（常見於急性腸胃炎、感染或腹瀉前夕）。{"\n"}
+                    2. **蠕動低下**：每分鐘僅 1 至 3 次，聲音稀疏微弱（常見於便秘、腸阻塞早期或麻醉術後恢復期）。{"\n"}
+                    3. **腸道無蠕動**：持續數分鐘皆無任何腸鳴音，次數為 0（警示腸阻塞晚期、腸麻痺或腹膜炎，需密切注意）。{"\n"}
+                    4. **次數與音頻異常**：雖然收音次數在正常區間，但其頻譜能量分佈有高頻雜訊或聲學特徵異常。
                   </Text>
                 </View>
-              </View>
-            </View>
 
-            {/* 3. 腸鳴音減弱 */}
-            <View style={styles.card}>
-              <View style={styles.cardHeader}>
-                <View style={styles.cardTitleContainer}>
-                  <Ionicons name="trending-down" size={22} color="#F59E0B" />
-                  <Text style={styles.cardTitle}>腸鳴音減弱</Text>
-                </View>
-                <View style={[styles.badge, { backgroundColor: '#FEF3C7' }]}>
-                  <Text style={[styles.badgeText, { color: '#F59E0B' }]}>警示觀察</Text>
-                </View>
-              </View>
-              <View style={styles.cardContent}>
-                <Text style={styles.descriptionText}>
-                  腸道蠕動極度緩慢，聲音稀疏、微弱甚至短暫消失，代表消化機能偏向停滯狀態。
-                </Text>
-                <View style={styles.featureBox}>
-                  <View style={styles.featureRow}>
-                    <Ionicons name="stats-chart" size={14} color="#64748B" />
-                    <Text style={styles.featureLabel}>標準頻率：</Text>
-                  </View>
-                  <Text style={styles.featureValue}>每分鐘 3 次以下，或每數分鐘僅出現 1 次</Text>
-                </View>
-                <View style={[styles.clinicalTipBox, { backgroundColor: '#FFFDF0', borderLeftColor: '#F59E0B' }]}>
+                <View style={[styles.clinicalTipBox, { backgroundColor: '#FFF5F5', borderLeftColor: '#EF4444' }]}>
                   <View style={styles.clinicalTipTitleRow}>
-                    <Ionicons name="warning" size={14} color="#B45309" />
-                    <Text style={[styles.clinicalTipTitle, { color: '#B45309' }]}>常見原因與處置</Text>
+                    <Ionicons name="warning" size={14} color="#B91C1C" />
+                    <Text style={[styles.clinicalTipTitle, { color: '#B91C1C' }]}>臨床建議與處置</Text>
                   </View>
-                  <Text style={[styles.clinicalTipText, { color: '#92400E' }]}>
-                    常見於麻醉術後恢復期、嚴重便秘、腸阻塞晚期或腹膜炎。若腹脹如鼓、持續性疼痛且無法排氣（放屁），應儘速尋求醫師協助。
+                  <Text style={[styles.clinicalTipText, { color: '#991B1B' }]}>
+                    若持續偵測為「異常」，且伴隨劇烈腹痛、嘔吐、腹脹如鼓或無法排氣（放屁）等臨床症狀，請儘速就醫尋求專業醫師協助。
                   </Text>
                 </View>
               </View>
