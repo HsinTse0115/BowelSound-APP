@@ -22,13 +22,14 @@
 
 #### 主要資料結構
 
-##### `Patient` (病患資料)
+##### `Patient` (受測者資料，保留既有型別名稱以相容舊資料)
 ```typescript
 interface Patient {
-  id: string;        // 病患識別碼 (例: P-1001)
+  id: string;        // 受測者識別碼 (例: P-1001)
   name: string;      // 姓名
   age: number;       // 年齡
   gender: 'M' | 'F'; // 性別
+  subjectType?: 'participant' | 'patient'; // 一般受測者 / 病患
   note?: string;     // 臨床備註
   createdAt: string; // 建立時間
 }
@@ -44,7 +45,7 @@ interface BowelRecord {
   // AI 診斷結果 (模擬數據)
   aiResult: {
     frequency: number;                     // 腸鳴音頻率 (次/分鐘)
-    status: 'normal' | 'hyper' | 'hypo';   // 正常 / 亢進 / 減弱
+    status: 'normal' | 'abnormal';          // 正常 / 異常
     confidence: number;                    // AI 信心度 (0-1)
     notes: string;                         // 臨床提示與分析摘要
     waveformMockData: number[];            // 模擬音訊波形序列 (時域)
@@ -59,6 +60,7 @@ interface AppSettings {
   apiUrl: string;             // API 伺服器網址
   defaultDuration: number;    // 預設錄音時長 (秒)
   hardwareConnected: boolean; // 藍牙/感測硬體連線模擬狀態
+  themeMode: 'light' | 'dark'; // 使用者選擇的介面主題
 }
 ```
 
@@ -67,7 +69,7 @@ interface AppSettings {
 - `records`: `BowelRecord[]`
 - `settings`: `AppSettings`
 - `addPatient(patient: Omit<Patient, 'id' | 'createdAt'>): void`
-- `addRecord(patientId: string, duration: number): BowelRecord`
+- `addRecord(patientId: string, duration: number, hasCaffeine: boolean, symptoms: string[], mealTime: string, decibelLevel: number): BowelRecord`
 - `updateSettings(settings: Partial<AppSettings>): void`
 
 ---
@@ -78,10 +80,10 @@ interface AppSettings {
 
 ### 3. record_module
 - **輸入**：從 `context_module` 獲取 `patients` 列表、`settings` 參數；`addRecord` 動作。
-- **輸出**：選擇要綁定的病患，採集結束後呼叫 `addRecord` 新增紀錄。
+- **輸出**：選擇要綁定的病患，確認感測器已連線並完成環境檢查；採集結束後以完整生理與環境參數呼叫 `addRecord` 新增紀錄。
 
 ### 4. analytics_module
-- **輸入**：從 `context_module` 獲取 `patients` 與 `records` 列表。
+- **輸入**：從 `context_module` 獲取 `patients` 與 `records` 列表；若路由帶入 `recordId`，優先顯示該筆紀錄。
 - **輸出**：透過 UI 選擇特定病患與特定採集紀錄，將其時域波形（繪製成 Canvas/SVG 或自訂折線圖）與頻譜圖（熱圖或網格）呈現。
 
 ### 5. settings_module

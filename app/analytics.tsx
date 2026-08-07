@@ -9,7 +9,7 @@ import {
   Modal,
   FlatList,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useApp, Patient, BowelRecord } from '@/context/AppContext';
 import { styles } from '../styles/analytics.styles';
@@ -20,7 +20,9 @@ import { styles } from '../styles/analytics.styles';
  */
 export default function AnalyticsScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams<{ recordId?: string | string[] }>();
   const { patients, records } = useApp();
+  const requestedRecordId = Array.isArray(params.recordId) ? params.recordId[0] : params.recordId;
 
   // 選擇的病患與紀錄狀態
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
@@ -30,8 +32,20 @@ export default function AnalyticsScreen() {
   const [patientModalVisible, setPatientModalVisible] = useState(false);
   const [recordModalVisible, setRecordModalVisible] = useState(false);
 
-  // 1. 初始化預設選取：若有病患，預設選擇第一位病患及其最新一筆檢測紀錄
+  // 1. 優先依路由 recordId 顯示指定紀錄；沒有參數時才使用預設紀錄
   useEffect(() => {
+    if (requestedRecordId) {
+      const requestedRecord = records.find(record => record.id === requestedRecordId);
+      if (requestedRecord) {
+        setSelectedRecord(requestedRecord);
+        setSelectedPatient(patients.find(patient => patient.id === requestedRecord.patientId) ?? null);
+      } else {
+        setSelectedRecord(null);
+        setSelectedPatient(null);
+      }
+      return;
+    }
+
     if (patients.length > 0 && !selectedPatient) {
       const firstPatient = patients[0];
       setSelectedPatient(firstPatient);
@@ -46,7 +60,7 @@ export default function AnalyticsScreen() {
         setSelectedRecord(sorted[0]);
       }
     }
-  }, [patients, records, selectedPatient]);
+  }, [patients, records, requestedRecordId, selectedPatient]);
 
   // 2. 連動篩選：當點擊選擇不同病患時，更新選取病患，並自動預選該病患的最新一筆紀錄
   const handlePatientSelect = (patient: Patient) => {
@@ -186,17 +200,19 @@ export default function AnalyticsScreen() {
           /* 空狀態畫面：提示錄音引導 */
           <View style={styles.emptyCard}>
             <Ionicons name="mic-off-outline" size={64} color="#94A3B8" />
-            <Text style={styles.emptyTitle}>請先進行腸音採集</Text>
+            <Text style={styles.emptyTitle}>{requestedRecordId ? '找不到指定的檢測紀錄' : '請先進行腸音採集'}</Text>
             <Text style={styles.emptySubtitle}>
-              病患 {selectedPatient ? selectedPatient.name : ''} 目前尚無任何腸音紀錄，無法進行視覺化頻譜分析。
+              {requestedRecordId
+                ? '這筆紀錄可能已不存在，請返回摘要重新選擇。'
+                : `病患 ${selectedPatient ? selectedPatient.name : ''} 目前尚無任何腸音紀錄，無法進行視覺化頻譜分析。`}
             </Text>
             <TouchableOpacity
               style={styles.emptyButton}
-              onPress={() => router.push('/record')}
+              onPress={() => requestedRecordId ? router.replace('/(tabs)/explore' as never) : router.push('/record')}
               activeOpacity={0.8}
             >
               <Ionicons name="mic" size={20} color="#FFFFFF" />
-              <Text style={styles.emptyButtonText}>立即前往採集</Text>
+              <Text style={styles.emptyButtonText}>{requestedRecordId ? '返回檢測摘要' : '立即前往採集'}</Text>
             </TouchableOpacity>
           </View>
         ) : (

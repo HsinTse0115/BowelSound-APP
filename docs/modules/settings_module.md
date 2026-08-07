@@ -28,7 +28,10 @@
    - 提供 Toggle Switch 切換開關。
    - 開關開啟時：顯示「模擬腸音探頭：已連線 (綠色標籤)」，同時全域的 `hardwareConnected` 設為 `true`。
    - 開關關閉時：顯示「模擬腸音探頭：未連線 (灰色標籤)」，全域 `hardwareConnected` 設為 `false`。
-4. **系統資訊卡片**：
+4. **介面外觀**：
+   - 提供 Light 與 Dark 按鈕，選擇結果寫入 `settings.themeMode` 並持久保存。
+   - 主導覽與主要工作頁面必須同步切換，文字與邊框維持可讀對比。
+5. **系統資訊卡片**：
    - 唯讀資訊展示，包含：App 版本號（例：v1.0.0）、模型版本號（例：Edge-BowelSound-v1.2）、系統運行環境（React Native / Expo Go）。
 
 ## 測試要求

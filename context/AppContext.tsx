@@ -1,6 +1,12 @@
 import React, { createContext, useContext, useState, useRef, ReactNode, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+const STORAGE_KEYS = {
+  patients: '@bowelsound_patients',
+  records: '@bowelsound_records',
+  settings: '@bowelsound_settings',
+} as const;
+
 /**
  * 病患資料介面
  */
@@ -13,6 +19,8 @@ export interface Patient {
   age: number;
   /** 性別 */
   gender: 'M' | 'F';
+  /** 受測者身分類型；一般受測者不需要病床或臨床備註 */
+  subjectType?: 'participant' | 'patient';
   /** 病床號碼 */
   bedNumber?: string;
   /** 臨床備註 */
@@ -68,24 +76,8 @@ export interface AppSettings {
   defaultDuration: number;
   /** 藍牙/感測硬體連線模擬狀態 */
   hardwareConnected: boolean;
-}
-
-/**
- * 受試者個人資料介面
- */
-export interface UserProfile {
-  /** 受試者代號 / 暱稱 */
-  name: string;
-  /** 年齡 */
-  age: string;
-  /** 性別 */
-  gender: 'M' | 'F' | '';
-  /** 身高 (cm) */
-  height: string;
-  /** 體重 (kg) */
-  weight: string;
-  /** 病史與用藥 */
-  selectedMeds: string[];
+  /** 使用者選擇的介面主題 */
+  themeMode: 'light' | 'dark';
 }
 
 /**
@@ -98,16 +90,12 @@ export interface AppContextType {
   records: BowelRecord[];
   /** 系統設定 */
   settings: AppSettings;
-  /** 受試者個人資料 */
-  userProfile: UserProfile | null;
   /** 新增病患 */
   addPatient: (patient: Omit<Patient, 'id' | 'createdAt'>) => void;
   /** 新增腸音紀錄，並回傳新增的紀錄物件 */
   addRecord: (patientId: string, duration: number, hasCaffeine: boolean, symptoms: string[], mealTime: string, decibelLevel: number) => BowelRecord;
   /** 更新系統設定 (支援局部更新) */
   updateSettings: (settings: Partial<AppSettings>) => void;
-  /** 儲存/更新受試者個人資料 */
-  saveUserProfile: (profile: UserProfile) => Promise<void>;
 }
 
 /**
@@ -256,40 +244,73 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     apiUrl: 'http://localhost:8000',
     defaultDuration: 10,
     hardwareConnected: false,
+    themeMode: 'light',
   });
 
-  // 受試者個人資料狀態
-  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
-
-  // 在 App 啟動時自 AsyncStorage 載入個人資料
-  useEffect(() => {
-    const loadProfile = async () => {
-      try {
-        const stored = await AsyncStorage.getItem('@bowelsound_user_profile');
-        if (stored) {
-          setUserProfile(JSON.parse(stored));
-        }
-      } catch (e) {
-        console.error('載入個人資料失敗', e);
-      }
-    };
-    loadProfile();
-  }, []);
-
-  // 儲存/更新受試者資料至 AsyncStorage 的函數
-  const saveUserProfile = async (profile: UserProfile) => {
-    try {
-      await AsyncStorage.setItem('@bowelsound_user_profile', JSON.stringify(profile));
-      setUserProfile(profile);
-    } catch (e) {
-      console.error('儲存個人資料失敗', e);
-      throw e;
-    }
-  };
-
-  // 用 useRef 來紀錄下一個可用的 ID 序號，避免連續呼叫時 state 未同步導致 ID 重複
+  // 紀錄下一個可用的 ID 序號，避免連續新增時產生重複 ID
   const nextPatientIdRef = useRef<number>(1004);
   const nextRecordIdRef = useRef<number>(2005);
+  const hasHydratedRef = useRef(false);
+
+  // 在 App 啟動時載入病患、紀錄、設定與個人資料
+  useEffect(() => {
+    const hydrate = async () => {
+      try {
+        const [storedPatients, storedRecords, storedSettings] = await Promise.all([
+          AsyncStorage.getItem(STORAGE_KEYS.patients),
+          AsyncStorage.getItem(STORAGE_KEYS.records),
+          AsyncStorage.getItem(STORAGE_KEYS.settings),
+        ]);
+
+        if (storedPatients) {
+          const parsedPatients: Patient[] = JSON.parse(storedPatients);
+          if (Array.isArray(parsedPatients)) {
+            setPatients(parsedPatients);
+            const maxId = Math.max(1003, ...parsedPatients.map(item => Number(item.id.replace('P-', '')) || 0));
+            nextPatientIdRef.current = maxId + 1;
+          }
+        }
+        if (storedRecords) {
+          const parsedRecords: BowelRecord[] = JSON.parse(storedRecords);
+          if (Array.isArray(parsedRecords)) {
+            setRecords(parsedRecords);
+            const maxId = Math.max(2004, ...parsedRecords.map(item => Number(item.id.replace('R-', '')) || 0));
+            nextRecordIdRef.current = maxId + 1;
+          }
+        }
+        if (storedSettings) {
+          const parsedSettings: Partial<AppSettings> = JSON.parse(storedSettings);
+          setSettings(current => ({ ...current, ...parsedSettings }));
+        }
+      } catch (e) {
+        console.error('載入本機資料失敗', e);
+      } finally {
+        hasHydratedRef.current = true;
+      }
+    };
+    hydrate();
+  }, []);
+
+  useEffect(() => {
+    if (!hasHydratedRef.current) return;
+    AsyncStorage.setItem(STORAGE_KEYS.patients, JSON.stringify(patients)).catch(error =>
+      console.error('儲存病患資料失敗', error)
+    );
+  }, [patients]);
+
+  useEffect(() => {
+    if (!hasHydratedRef.current) return;
+    AsyncStorage.setItem(STORAGE_KEYS.records, JSON.stringify(records)).catch(error =>
+      console.error('儲存檢測紀錄失敗', error)
+    );
+  }, [records]);
+
+  useEffect(() => {
+    if (!hasHydratedRef.current) return;
+    AsyncStorage.setItem(STORAGE_KEYS.settings, JSON.stringify(settings)).catch(error =>
+      console.error('儲存系統設定失敗', error)
+    );
+  }, [settings]);
 
   /**
    * 新增病患資訊，自動生成遞增 ID (如 P-1004) 與目前 ISO 時間
@@ -378,7 +399,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
 
   return (
-    <AppContext.Provider value={{ patients, records, settings, userProfile, addPatient, addRecord, updateSettings, saveUserProfile }}>
+    <AppContext.Provider value={{ patients, records, settings, addPatient, addRecord, updateSettings }}>
       {children}
     </AppContext.Provider>
   );

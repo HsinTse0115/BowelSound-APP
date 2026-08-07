@@ -1,7 +1,7 @@
 # record_module 需求規格
 
 ## 負責檔案
-- `app/(tabs)/record.tsx`
+- `app/record.tsx`
 - `styles/record.styles.ts`
 
 ## 功能描述
@@ -9,11 +9,12 @@
 
 ## 輸入 / 輸出
 - **輸入**：
-  - 讀取 `patients` 列表以供選擇。
+  - 讀取 `patients` 列表以供選擇；名單可同時包含一般受測者與病患。
   - 讀取設定中的 `defaultDuration`（作為倒數/錄音限制時間）。
-  - 使用者點選選擇病患、開始與停止採集按鈕。
+  - 讀取 `hardwareConnected`；感測器未連線時禁止開始採集。
+  - 使用者點選選擇受測者、開始與停止採集按鈕。
 - **輸出**：
-  - 呼叫 `addRecord(patientId, duration)` 寫入採集紀錄。
+  - 呼叫 `addRecord(patientId, duration, hasCaffeine, symptoms, mealTime, decibelLevel)` 寫入完整採集紀錄。
   - 動態波形與計時器動畫更新。
 
 ## 相依模組

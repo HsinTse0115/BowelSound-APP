@@ -185,17 +185,19 @@ export const styles = StyleSheet.create({
     paddingBottom: 50 
   },
   recordButton: { 
-    width: 140, 
-    height: 140, 
-    borderRadius: 70, 
+    width: '100%',
+    maxWidth: 520,
+    height: 56,
+    borderRadius: 14,
     backgroundColor: '#0D6EFD', 
     justifyContent: 'center', 
     alignItems: 'center', 
     shadowColor: '#0D6EFD', 
-    shadowOffset: { width: 0, height: 8 }, 
-    shadowOpacity: 0.3, 
-    shadowRadius: 16, 
-    elevation: 5 
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.18,
+    shadowRadius: 10,
+    elevation: 3,
+    alignSelf: 'center',
   },
   recordButtonActive: { 
     backgroundColor: '#EF4444', 
@@ -208,9 +210,8 @@ export const styles = StyleSheet.create({
   },
   buttonText: { 
     color: '#FFFFFF', 
-    fontSize: 20, 
-    fontWeight: 'bold',
-    letterSpacing: 1 
+    fontSize: 17,
+    fontWeight: '700',
   },
   // 使用者填資料介面新增樣式
   statusBox: {
@@ -228,6 +229,37 @@ export const styles = StyleSheet.create({
     color: '#0D6EFD',
     fontWeight: '600',
   },
+  statusLine: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    minHeight: 28,
+  },
+  connectionAlert: {
+    minHeight: 52,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#FFF1EC',
+    borderWidth: 1,
+    borderColor: '#F3C8B9',
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    marginBottom: 8,
+  },
+  connectionAlertText: {
+    flex: 1,
+    color: '#B5472F',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  containerDark: { backgroundColor: '#101820' },
+  headerDark: { backgroundColor: '#17212B', borderBottomColor: '#33404E' },
+  surfaceDark: { backgroundColor: '#17212B', borderColor: '#43505E' },
+  textPrimaryDark: { color: '#EEF2F5' },
+  textSecondaryDark: { color: '#A6B1BC' },
+  rowItemDark: { borderBottomColor: '#33404E' },
+  chipDark: { backgroundColor: '#17212B', borderColor: '#43505E' },
   rowItem: {
     flexDirection: 'row',
     justifyContent: 'space-between',

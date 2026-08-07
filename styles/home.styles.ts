@@ -1,123 +1,37 @@
-// styles/home.styles.ts
-import { StyleSheet, Dimensions } from 'react-native';
+import { StyleSheet } from 'react-native';
 
-const { width } = Dimensions.get('window');
-const cardWidth = (width - 56) / 2;
-
-// 加上 export 將樣式匯出
 export const styles = StyleSheet.create({
-  container: { 
-    flex: 1, 
-    backgroundColor: '#F4F7FB' 
-  },
-  scrollContent: { 
-    padding: 20, 
-    paddingTop: 50, 
-    paddingBottom: 40 
-  },
-  header: { 
-    flexDirection: 'row', 
-    justifyContent: 'space-between', 
-    alignItems: 'center', 
-    marginBottom: 32 
-  },
-  headerTitle: { 
-    fontSize: 28, 
-    fontWeight: '800', 
-    color: '#1E293B', 
-    letterSpacing: 0.5 
-  },
-  welcomeText: { 
-    fontSize: 16, 
-    color: '#64748B', 
-    marginTop: 6, 
-    fontWeight: '500' 
-  },
-  avatarPlaceholder: { 
-    width: 48, 
-    height: 48, 
-    borderRadius: 24, 
-    backgroundColor: '#FFFFFF', 
-    justifyContent: 'center', 
-    alignItems: 'center', 
-    shadowColor: '#000', 
-    shadowOffset: { width: 0, height: 2 }, 
-    shadowOpacity: 0.05, 
-    shadowRadius: 4, 
-    elevation: 2 
-  },
-  menuContainer: { 
-    flexDirection: 'row', 
-    flexWrap: 'wrap', 
-    justifyContent: 'space-between', 
-    gap: 16 
-  },
-  menuCard: { 
-    width: cardWidth, 
-    backgroundColor: '#FFFFFF', 
-    padding: 20, 
-    borderRadius: 24, 
-    shadowColor: '#94A3B8', 
-    shadowOffset: { width: 0, height: 8 }, 
-    shadowOpacity: 0.12, 
-    shadowRadius: 16, 
-    elevation: 4,
-    marginBottom: 4
-  },
-  iconContainer: { 
-    width: 52, 
-    height: 52, 
-    borderRadius: 16, 
-    justifyContent: 'center', 
-    alignItems: 'center', 
-    marginBottom: 16 
-  },
-  menuTitle: { 
-    fontSize: 17, 
-    fontWeight: '700', 
-    color: '#334155', 
-    marginBottom: 6 
-  },
-  menuDesc: { 
-    fontSize: 13, 
-    color: '#94A3B8', 
-    fontWeight: '500',
-    lineHeight: 18
-  },
-  infoBanner: { 
-    flexDirection: 'row', 
-    backgroundColor: '#E8F4FD', 
-    padding: 16, 
-    borderRadius: 16, 
-    marginTop: 32, 
-    alignItems: 'center' 
-  },
-  infoBannerConnected: { 
-    flexDirection: 'row', 
-    backgroundColor: '#E6F8F3', 
-    padding: 16, 
-    borderRadius: 16, 
-    marginTop: 32, 
-    alignItems: 'center' 
-  },
-  infoTextContainer: { 
-    marginLeft: 12, 
-    flex: 1 
-  },
-  infoTitle: { 
-    fontSize: 15, 
-    fontWeight: '700', 
-    color: '#0D6EFD', 
-    marginBottom: 2 
-  },
-  infoTitleConnected: { 
-    fontSize: 15, 
-    fontWeight: '700', 
-    color: '#10B981', 
-    marginBottom: 2 
-  },
-  infoDesc: { 
-    fontSize: 13, 
-    color: '#64748B' 
-  },
+  container: { flex: 1, backgroundColor: '#F7F9FC' },
+  scrollContent: { width: '100%', maxWidth: 720, alignSelf: 'center', padding: 20, paddingBottom: 32 },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 12, marginBottom: 20 },
+  headerTitle: { color: '#162235', fontSize: 26, fontWeight: '800' },
+  headerSubtitle: { color: '#6D7B8C', fontSize: 15, marginTop: 3 },
+  profileButton: { width: 46, height: 46, borderRadius: 23, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E1E7EE' },
+  pressed: { opacity: 0.65 },
+  deviceCard: { backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E1E7EE', borderRadius: 20, padding: 20 },
+  deviceHeader: { flexDirection: 'row', alignItems: 'center', gap: 9 },
+  statusDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: '#E49A76' },
+  statusDotConnected: { backgroundColor: '#2DA66F' },
+  deviceTitle: { color: '#1E2C3D', fontSize: 17, fontWeight: '700' },
+  deviceDescription: { color: '#6D7B8C', fontSize: 14, lineHeight: 21, marginTop: 10 },
+  primaryButton: { minHeight: 52, marginTop: 18, borderRadius: 14, backgroundColor: '#1478F2', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 9 },
+  primaryButtonText: { color: '#FFFFFF', fontSize: 16, fontWeight: '700' },
+  overviewRow: { flexDirection: 'row', alignItems: 'stretch', marginVertical: 24, paddingVertical: 18, borderRadius: 18, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E1E7EE' },
+  overviewItem: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 6 },
+  overviewDivider: { width: 1, backgroundColor: '#E8EDF2' },
+  overviewValue: { color: '#1E2C3D', fontSize: 20, fontWeight: '800' },
+  overviewLabel: { color: '#7B8998', fontSize: 12, marginTop: 5 },
+  sectionTitle: { color: '#1E2C3D', fontSize: 18, fontWeight: '700', marginBottom: 12 },
+  actionList: { backgroundColor: '#FFFFFF', borderRadius: 18, borderWidth: 1, borderColor: '#E1E7EE', overflow: 'hidden' },
+  actionRow: { minHeight: 76, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#E1E7EE' },
+  actionIcon: { width: 42, height: 42, borderRadius: 13, alignItems: 'center', justifyContent: 'center', backgroundColor: '#EAF3FF' },
+  actionText: { flex: 1, marginHorizontal: 13 },
+  actionTitle: { color: '#26364A', fontSize: 15, fontWeight: '700' },
+  actionDescription: { color: '#7B8998', fontSize: 12, marginTop: 4 },
+  containerDark: { backgroundColor: '#101820' },
+  surfaceDark: { backgroundColor: '#17212B', borderColor: '#33404E' },
+  textPrimaryDark: { color: '#EEF2F5' },
+  textSecondaryDark: { color: '#A6B1BC' },
+  actionRowDark: { borderBottomColor: '#33404E' },
+  actionIconDark: { backgroundColor: '#203448' },
 });

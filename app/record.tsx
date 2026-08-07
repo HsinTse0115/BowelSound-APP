@@ -3,9 +3,10 @@ import { SafeAreaView, Text, TouchableOpacity, View, Modal, FlatList, Alert, Swi
 import { useRouter } from 'expo-router'; // 匯入路由功能
 import { Ionicons } from '@expo/vector-icons'; // 匯入圖示套件
 
-import { styles } from '../../styles/record.styles';
-import { useApp, Patient } from '../../context/AppContext';
-import { WaveformVisualizer } from '../../components/WaveformVisualizer';
+import { styles } from '../styles/record.styles';
+import { useApp, Patient } from '../context/AppContext';
+import { WaveformVisualizer } from '../components/WaveformVisualizer';
+import { apiRequest } from '../services/api';
 
 /**
  * RecordScreen 元件：負責即時採集腸音信號的頁面。
@@ -14,6 +15,7 @@ import { WaveformVisualizer } from '../../components/WaveformVisualizer';
 export default function RecordScreen() {
   const router = useRouter();
   const { patients, settings, addRecord } = useApp();
+  const isDark = settings.themeMode === 'dark';
 
   // 狀態管理
   const [selectedPatientId, setSelectedPatientId] = useState<string | null>(null);
@@ -67,7 +69,7 @@ export default function RecordScreen() {
       [
         {
           text: '返回首頁',
-          onPress: () => router.replace('/'),
+          onPress: () => router.replace('/(tabs)' as never),
           style: 'cancel',
         },
         {
@@ -164,11 +166,11 @@ export default function RecordScreen() {
       formData.append('mealTime', mealTime);
       formData.append('decibelLevel', String(envVolume));
       
-      // 若需要受試者個資，可自 Context 中一併打包上傳
+      // 病患識別資料可由目前選取的 patient 一併打包上傳
       formData.append('patientName', selectedPatient?.name || '');
 
       // 2. 發送 API 請求
-      const response = await fetch('http://localhost:8000/api/analyze', {
+      const response = await apiRequest(settings.apiUrl, '/api/analyze', {
         method: 'POST',
         headers: {
           'Content-Type': 'multipart/form-data',
@@ -209,20 +211,20 @@ export default function RecordScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
+    <SafeAreaView style={[styles.container, isDark && styles.containerDark]}>
+      <View style={[styles.header, isDark && styles.headerDark]}>
         {/* 返回上一頁按鈕 */}
         <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-          <Ionicons name="chevron-back" size={28} color="#1E293B" />
+          <Ionicons name="chevron-back" size={28} color={isDark ? '#EEF2F5' : '#1E293B'} />
         </TouchableOpacity>
         
         {/* 標題區塊 */}
         <View style={{ alignItems: 'center' }}>
-          <Text style={styles.headerTitle}>腸音檢測系統</Text>
+          <Text style={[styles.headerTitle, isDark && styles.textPrimaryDark]}>腸音檢測系統</Text>
           {selectedPatient ? (
-            <Text style={styles.subTitle}>當前病患: {selectedPatient.name} ({selectedPatient.id})</Text>
+            <Text style={[styles.subTitle, isDark && styles.textSecondaryDark]}>當前受測者: {selectedPatient.name} ({selectedPatient.id})</Text>
           ) : (
-            <Text style={styles.subTitle}>請先選擇病患</Text>
+          <Text style={[styles.subTitle, isDark && styles.textSecondaryDark]}>請先選擇受測者</Text>
           )}
         </View>
       </View>
@@ -233,7 +235,7 @@ export default function RecordScreen() {
           <View style={styles.waveformBox}>
             {/* 動態波形模擬元件 */}
             <WaveformVisualizer isRecording={isRecording} />
-            <Text style={styles.statusText}>🔴 正在接收訊號...</Text>
+            <Text style={styles.statusText}>正在接收訊號…</Text>
           </View>
 
           {/* 顯示動態計時器 */}
@@ -252,11 +254,11 @@ export default function RecordScreen() {
           </View>
         </View>
       ) : (
-        <ScrollView contentContainerStyle={{ padding: 20 }} showsVerticalScrollIndicator={false}>
+        <ScrollView style={isDark && styles.containerDark} contentContainerStyle={{ padding: 20 }} showsVerticalScrollIndicator={false}>
           {/* 病患選擇器 */}
-          <Text style={styles.sectionTitle}>病患綁定</Text>
+          <Text style={[styles.sectionTitle, isDark && styles.textPrimaryDark]}>受測者</Text>
           <TouchableOpacity 
-            style={styles.patientSelector} 
+            style={[styles.patientSelector, isDark && styles.surfaceDark]}
             onPress={() => setIsPickerVisible(true)}
             activeOpacity={0.7}
           >
@@ -267,71 +269,91 @@ export default function RecordScreen() {
                 color={selectedPatient ? "#0D6EFD" : "#94A3B8"} 
               />
               {selectedPatient ? (
-                <Text style={styles.patientSelectorText}>
+                <Text style={[styles.patientSelectorText, isDark && styles.textPrimaryDark]}>
                   {selectedPatient.id} - {selectedPatient.name} ({selectedPatient.gender === 'M' ? '男' : '女'}, {selectedPatient.age}歲)
                 </Text>
               ) : (
-                <Text style={styles.patientSelectorPlaceholder}>點擊此處選擇病患...</Text>
+                <Text style={[styles.patientSelectorPlaceholder, isDark && styles.textSecondaryDark]}>點擊此處選擇受測者...</Text>
               )}
             </View>
             <Ionicons name="chevron-down" size={20} color="#64748B" />
           </TouchableOpacity>
 
           {/* 環境與麥克風狀態 */}
-          <View style={[styles.statusBox, envVolume >= 50 && styles.statusBoxWarning]}>
-            <Text style={[styles.statusBoxText, envVolume >= 50 && styles.statusBoxWarningText]}>
-              🎤 麥克風權限：{micPermission === '已授權' ? '🟢 已授權' : '🔴 未授權'}
-            </Text>
-            <Text style={[styles.statusBoxText, envVolume >= 50 && styles.statusBoxWarningText]}>
-              🔊 當前環境音量：{envVolume >= 50 ? `🔴 ${envVolume} dB` : `🟢 ${envVolume} dB`}
-            </Text>
+          <View style={[styles.statusBox, (envVolume >= 50 || !settings.hardwareConnected) && styles.statusBoxWarning]}>
+            <View style={styles.statusLine}>
+              <Ionicons name="mic-outline" size={18} color={micPermission === '已授權' ? '#1478F2' : '#D95D5D'} />
+              <Text style={[styles.statusBoxText, micPermission !== '已授權' && styles.statusBoxWarningText]}>
+                麥克風權限：{micPermission === '已授權' ? '已授權' : '未授權'}
+              </Text>
+            </View>
+            <View style={styles.statusLine}>
+              <Ionicons name="volume-medium-outline" size={18} color={envVolume >= 50 ? '#D95D5D' : '#1478F2'} />
+              <Text style={[styles.statusBoxText, envVolume >= 50 && styles.statusBoxWarningText]}>
+                當前環境音量：{envVolume} dB
+              </Text>
+            </View>
+            <View style={styles.statusLine}>
+              <Ionicons name="radio-outline" size={18} color={settings.hardwareConnected ? '#2DA66F' : '#D95D5D'} />
+              <Text style={[styles.statusBoxText, !settings.hardwareConnected && styles.statusBoxWarningText]}>
+                感測器：{settings.hardwareConnected ? '已連線' : '未連線'}
+              </Text>
+            </View>
           </View>
+
+          {!settings.hardwareConnected && (
+            <TouchableOpacity style={styles.connectionAlert} onPress={() => router.push('/settings' as never)}>
+              <Ionicons name="information-circle-outline" size={20} color="#B5472F" />
+              <Text style={styles.connectionAlertText}>請先連接腸音感測器</Text>
+              <Ionicons name="chevron-forward" size={18} color="#B5472F" />
+            </TouchableOpacity>
+          )}
 
           {envVolume >= 50 && (
             <View style={styles.warningAlertBox}>
               <Ionicons name="warning" size={20} color="#EF4444" style={{ marginRight: 8 }} />
-              <Text style={styles.warningAlertText}>🔴 環境音量過高 (≥ 50 dB)，請移至安靜處以確保量測品質</Text>
+              <Text style={styles.warningAlertText}>環境音量過高（≥ 50 dB），請移至安靜處以確保量測品質</Text>
             </View>
           )}
 
           {/* 狀態確認 */}
-          <Text style={styles.sectionTitle}>錄音前狀態確認</Text>
-          <View style={styles.rowItem}>
-            <Text style={styles.rowItemText}>☕ 錄音前喝咖啡/茶</Text>
+          <Text style={[styles.sectionTitle, isDark && styles.textPrimaryDark]}>錄音前狀態確認</Text>
+          <View style={[styles.rowItem, isDark && styles.rowItemDark]}>
+            <Text style={[styles.rowItemText, isDark && styles.textPrimaryDark]}>錄音前喝咖啡或茶</Text>
             <Switch value={hasCaffeine} onValueChange={setHasCaffeine} trackColor={{ true: '#0D6EFD' }} />
           </View>
 
           {/* 飯後時間確認 */}
-          <Text style={styles.sectionTitle}>🍽️ 飯後時間</Text>
+          <Text style={[styles.sectionTitle, isDark && styles.textPrimaryDark]}>飯後時間</Text>
           <View style={styles.chipContainer}>
             {mealTimeOptions.map(option => {
               const isSelected = mealTime === option;
               return (
                 <TouchableOpacity 
                   key={option} 
-                  style={[styles.chip, isSelected && styles.chipSelected]} 
+                  style={[styles.chip, isDark && styles.chipDark, isSelected && styles.chipSelected]}
                   onPress={() => setMealTime(option)}
                   activeOpacity={0.7}
                 >
-                  <Text style={isSelected ? styles.chipTextSelected : styles.chipText}>{option}</Text>
+                  <Text style={isSelected ? styles.chipTextSelected : [styles.chipText, isDark && styles.textSecondaryDark]}>{option}</Text>
                 </TouchableOpacity>
               );
             })}
           </View>
 
           {/* 症狀確認 */}
-          <Text style={styles.sectionTitle}>當前腸胃症狀 (可複選)</Text>
+          <Text style={[styles.sectionTitle, isDark && styles.textPrimaryDark]}>當前腸胃症狀 (可複選)</Text>
           <View style={styles.chipContainer}>
             {symptomOptions.map(symp => {
               const isSelected = selectedSymptoms.includes(symp);
               return (
                 <TouchableOpacity 
                   key={symp} 
-                  style={[styles.chip, isSelected && styles.chipSelected]} 
+                  style={[styles.chip, isDark && styles.chipDark, isSelected && styles.chipSelected]}
                   onPress={() => toggleSymptom(symp)}
                   activeOpacity={0.7}
                 >
-                  <Text style={isSelected ? styles.chipTextSelected : styles.chipText}>{symp}</Text>
+                  <Text style={isSelected ? styles.chipTextSelected : [styles.chipText, isDark && styles.textSecondaryDark]}>{symp}</Text>
                 </TouchableOpacity>
               );
             })}
@@ -342,10 +364,10 @@ export default function RecordScreen() {
             <TouchableOpacity 
               style={[
                 styles.recordButton, 
-                (!selectedPatientId || envVolume >= 50) && styles.recordButtonDisabled
+                (!selectedPatientId || envVolume >= 50 || !settings.hardwareConnected) && styles.recordButtonDisabled
               ]}
               onPress={handleRecordPress}
-              disabled={!selectedPatientId || envVolume >= 50}
+              disabled={!selectedPatientId || envVolume >= 50 || !settings.hardwareConnected}
               activeOpacity={0.7}
             >
               <Text style={styles.buttonText}>開始檢測</Text>
@@ -364,7 +386,7 @@ export default function RecordScreen() {
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>選擇病患</Text>
+              <Text style={styles.modalTitle}>選擇受測者</Text>
               <TouchableOpacity onPress={() => setIsPickerVisible(false)}>
                 <Ionicons name="close" size={24} color="#64748B" />
               </TouchableOpacity>

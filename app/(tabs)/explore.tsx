@@ -1,41 +1,33 @@
 import { Ionicons } from '@expo/vector-icons';
-import React from 'react';
+import React, { useMemo } from 'react';
 import { SafeAreaView, ScrollView, StyleSheet, Text, View, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useApp } from '../../context/AppContext';
-
-const summaryItems = [
-  {
-    label: '今日採集',
-    value: '3',
-    unit: '筆',
-    icon: 'mic-outline',
-    color: '#0D6EFD',
-    backgroundColor: '#E8F4FD',
-  },
-  {
-    label: '待確認訊號',
-    value: '1',
-    unit: '筆',
-    icon: 'pulse-outline',
-    color: '#8B5CF6',
-    backgroundColor: '#F3E8FF',
-  },
-  {
-    label: '模型狀態',
-    value: '待命',
-    unit: '',
-    icon: 'hardware-chip-outline',
-    color: '#10B981',
-    backgroundColor: '#E6F8F3',
-  },
-] as const;
 
 const workflowItems = ['確認患者身分與感測器位置', '完成腸音採集並保留原始波形', '檢視 AI 推論摘要與異常提示'];
 
 export default function SummaryScreen() {
   const router = useRouter();
-  const { records, patients } = useApp();
+  const { records, patients, settings } = useApp();
+  const isDark = settings.themeMode === 'dark';
+
+  const summaryItems = useMemo(() => {
+    const now = new Date();
+    const isToday = (value: string) => {
+      const date = new Date(value);
+      return date.getFullYear() === now.getFullYear()
+        && date.getMonth() === now.getMonth()
+        && date.getDate() === now.getDate();
+    };
+    const todayRecords = records.filter(record => isToday(record.createdAt));
+    const abnormalRecords = records.filter(record => record.aiResult.status === 'abnormal');
+
+    return [
+      { label: '今日採集', value: String(todayRecords.length), unit: '筆', icon: 'mic-outline' as const, color: '#1478F2', backgroundColor: '#EAF3FF' },
+      { label: '異常訊號', value: String(abnormalRecords.length), unit: '筆', icon: 'pulse-outline' as const, color: '#C65A48', backgroundColor: '#FFF0EC' },
+      { label: '感測器', value: settings.hardwareConnected ? '已連線' : '未連線', unit: '', icon: 'radio-outline' as const, color: settings.hardwareConnected ? '#2DA66F' : '#7B8998', backgroundColor: settings.hardwareConnected ? '#E9F8F1' : '#F0F3F6' },
+    ];
+  }, [records, settings.hardwareConnected]);
 
   // 取得最新紀錄，新到舊排序
   const sortedRecords = [...records].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
@@ -65,12 +57,12 @@ export default function SummaryScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, isDark && styles.containerDark]}>
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
           <View>
-            <Text style={styles.headerTitle}>檢測摘要</Text>
-            <Text style={styles.headerSubtitle}>腸音採集與 AI 推論概況</Text>
+            <Text style={[styles.headerTitle, isDark && styles.textPrimaryDark]}>檢測摘要</Text>
+            <Text style={[styles.headerSubtitle, isDark && styles.textSecondaryDark]}>腸音採集與 AI 推論概況</Text>
           </View>
           <View style={styles.headerIcon}>
             <Ionicons name="clipboard-outline" size={24} color="#0D6EFD" />
@@ -79,14 +71,14 @@ export default function SummaryScreen() {
 
         <View style={styles.summaryList}>
           {summaryItems.map((item) => (
-            <View key={item.label} style={styles.summaryCard}>
+            <View key={item.label} style={[styles.summaryCard, isDark && styles.surfaceDark]}>
               <View style={[styles.summaryIcon, { backgroundColor: item.backgroundColor }]}>
                 <Ionicons name={item.icon} size={24} color={item.color} />
               </View>
               <View style={styles.summaryText}>
-                <Text style={styles.summaryLabel}>{item.label}</Text>
+                <Text style={[styles.summaryLabel, isDark && styles.textSecondaryDark]}>{item.label}</Text>
                 <View style={styles.summaryValueRow}>
-                  <Text style={styles.summaryValue}>{item.value}</Text>
+                  <Text style={[styles.summaryValue, isDark && styles.textPrimaryDark]}>{item.value}</Text>
                   {item.unit ? <Text style={styles.summaryUnit}>{item.unit}</Text> : null}
                 </View>
               </View>
@@ -95,14 +87,14 @@ export default function SummaryScreen() {
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>臨床檢測流程</Text>
-          <View style={styles.workflowList}>
+          <Text style={[styles.sectionTitle, isDark && styles.textPrimaryDark]}>檢測流程</Text>
+          <View style={[styles.workflowList, isDark && styles.surfaceDark]}>
             {workflowItems.map((item, index) => (
               <View key={item} style={styles.workflowItem}>
                 <View style={styles.stepBadge}>
                   <Text style={styles.stepText}>{index + 1}</Text>
                 </View>
-                <Text style={styles.workflowText}>{item}</Text>
+                <Text style={[styles.workflowText, isDark && styles.textPrimaryDark]}>{item}</Text>
               </View>
             ))}
           </View>
@@ -110,7 +102,7 @@ export default function SummaryScreen() {
 
         {/* 最近檢測歷史區塊 */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>最近檢測歷史</Text>
+          <Text style={[styles.sectionTitle, isDark && styles.textPrimaryDark]}>最近檢測歷史</Text>
           {sortedRecords.length === 0 ? (
             <View style={styles.emptyList}>
               <Ionicons name="folder-open-outline" size={40} color="#94A3B8" />
@@ -124,7 +116,7 @@ export default function SummaryScreen() {
                 return (
                   <TouchableOpacity
                     key={item.id}
-                    style={styles.recordCard}
+                    style={[styles.recordCard, isDark && styles.surfaceDark]}
                     onPress={() => router.push({ pathname: '/analytics', params: { recordId: item.id } })}
                     activeOpacity={0.7}
                   >
@@ -136,7 +128,7 @@ export default function SummaryScreen() {
                       </View>
                       <View style={styles.recordMeta}>
                         <View style={styles.recordNameRow}>
-                          <Text style={styles.patientName}>{patient ? patient.name : '未知患者'}</Text>
+                          <Text style={[styles.patientName, isDark && styles.textPrimaryDark]}>{patient ? patient.name : '未知受測者'}</Text>
                           {patient?.bedNumber && (
                             <View style={styles.bedBadge}>
                               <Text style={styles.bedText}>{patient.bedNumber} 床</Text>
@@ -418,4 +410,8 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '700',
   },
+  containerDark: { backgroundColor: '#101820' },
+  surfaceDark: { backgroundColor: '#17212B', borderColor: '#33404E' },
+  textPrimaryDark: { color: '#EEF2F5' },
+  textSecondaryDark: { color: '#A6B1BC' },
 });

@@ -10,7 +10,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  TouchableWithoutFeedback,
+  Pressable,
   Keyboard
 } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -18,6 +18,7 @@ import { Ionicons } from '@expo/vector-icons';
 
 import { useApp } from '@/context/AppContext';
 import { styles } from '@/styles/patients.styles';
+import { apiRequest } from '@/services/api';
 
 /**
  * 格式化 ISO 8601 時間字串為 YYYY/MM/DD HH:mm
@@ -61,7 +62,8 @@ const STATUS_MAP = {
  */
 export default function PatientsScreen() {
   const router = useRouter();
-  const { patients, records, addPatient } = useApp();
+  const { patients, records, settings, addPatient } = useApp();
+  const isDark = settings.themeMode === 'dark';
 
   // 搜尋與篩選狀態
   const [searchQuery, setSearchQuery] = useState('');
@@ -74,12 +76,14 @@ export default function PatientsScreen() {
   const [name, setName] = useState('');
   const [age, setAge] = useState('');
   const [gender, setGender] = useState<'M' | 'F'>('M');
+  const [subjectType, setSubjectType] = useState<'participant' | 'patient'>('participant');
   const [bedNumber, setBedNumber] = useState('');
   const [note, setNote] = useState('');
 
   // 表單驗證錯誤訊息狀態
   const [nameError, setNameError] = useState('');
   const [ageError, setAgeError] = useState('');
+  const [savedPatientName, setSavedPatientName] = useState('');
 
   // 點擊病患卡片展開或收合
   const toggleExpand = (id: string) => {
@@ -110,12 +114,13 @@ export default function PatientsScreen() {
     }
 
     // 驗證年齡
-    const ageNum = parseInt(age, 10);
+    const ageText = age.trim();
+    const ageNum = Number(ageText);
     if (!age) {
       setAgeError('請輸入年齡');
       hasError = true;
-    } else if (isNaN(ageNum) || ageNum <= 0) {
-      setAgeError('年齡必須是大於 0 的整數');
+    } else if (!/^\d+$/.test(ageText) || !Number.isInteger(ageNum) || ageNum < 1 || ageNum > 120) {
+      setAgeError('請輸入 1 至 120 的完整年齡');
       hasError = true;
     } else {
       setAgeError('');
@@ -128,9 +133,11 @@ export default function PatientsScreen() {
       name: name.trim(),
       age: ageNum,
       gender,
-      bedNumber: bedNumber.trim() || undefined,
-      note: note.trim() || undefined,
+      subjectType,
+      bedNumber: subjectType === 'patient' ? bedNumber.trim() || undefined : undefined,
+      note: subjectType === 'patient' ? note.trim() || undefined : undefined,
     });
+    setSavedPatientName(name.trim());
 
     // 預留：將新增病患資料上傳至後端伺服器
     // uploadPatientToBackend({ name: name.trim(), age: ageNum, gender, bedNumber: bedNumber.trim(), note: note.trim() });
@@ -139,6 +146,7 @@ export default function PatientsScreen() {
     setName('');
     setAge('');
     setGender('M');
+    setSubjectType('participant');
     setBedNumber('');
     setNote('');
     setNameError('');
@@ -153,7 +161,7 @@ export default function PatientsScreen() {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const fetchPatientsFromBackend = async () => {
     try {
-      const response = await fetch('http://localhost:8000/api/patients');
+      const response = await apiRequest(settings.apiUrl, '/api/patients');
       if (!response.ok) throw new Error('取得病患列表失敗');
       const data = await response.json();
       console.log('取得後端病患資料成功:', data);
@@ -174,7 +182,7 @@ export default function PatientsScreen() {
     note?: string;
   }) => {
     try {
-      const response = await fetch('http://localhost:8000/api/patients', {
+      const response = await apiRequest(settings.apiUrl, '/api/patients', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -195,6 +203,7 @@ export default function PatientsScreen() {
     setName('');
     setAge('');
     setGender('M');
+    setSubjectType('participant');
     setBedNumber('');
     setNote('');
     setNameError('');
@@ -212,13 +221,13 @@ export default function PatientsScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, isDark && styles.containerDark]}>
       {/* 頂部標題列 */}
-      <View style={styles.header}>
+      <View style={[styles.header, isDark && styles.headerDark]}>
         <TouchableOpacity style={styles.backButton} onPress={() => router.back()} activeOpacity={0.7}>
-          <Ionicons name="chevron-back" size={24} color="#1E293B" />
+          <Ionicons name="chevron-back" size={24} color={isDark ? '#EEF2F5' : '#1E293B'} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>病患管理</Text>
+        <Text style={[styles.headerTitle, isDark && styles.textPrimaryDark]}>受測者管理</Text>
         <TouchableOpacity
           style={styles.addHeaderButton}
           onPress={() => setModalVisible(true)}
@@ -230,11 +239,11 @@ export default function PatientsScreen() {
 
       {/* 搜尋列 */}
       <View style={styles.searchContainer}>
-        <View style={styles.searchBarWrapper}>
+        <View style={[styles.searchBarWrapper, isDark && styles.surfaceDark]}>
           <Ionicons name="search-outline" size={20} color="#94A3B8" style={styles.searchIcon} />
           <TextInput
-            style={styles.searchInput}
-            placeholder="搜尋姓名或病患 ID..."
+            style={[styles.searchInput, isDark && styles.textPrimaryDark]}
+            placeholder="搜尋姓名或受測者 ID..."
             placeholderTextColor="#94A3B8"
             value={searchQuery}
             onChangeText={setSearchQuery}
@@ -248,6 +257,20 @@ export default function PatientsScreen() {
         </View>
       </View>
 
+      {savedPatientName ? (
+        <View style={styles.successBanner} accessibilityLiveRegion="polite">
+          <Ionicons name="checkmark-circle-outline" size={20} color="#2D8A61" />
+          <Text style={styles.successBannerText}>已新增受測者：{savedPatientName}</Text>
+          <TouchableOpacity
+            accessibilityLabel="關閉新增成功提示"
+            onPress={() => setSavedPatientName('')}
+            style={styles.successBannerClose}
+          >
+            <Ionicons name="close" size={18} color="#527062" />
+          </TouchableOpacity>
+        </View>
+      ) : null}
+
       {/* 病患列表 */}
       <FlatList
         data={filteredPatients}
@@ -258,10 +281,10 @@ export default function PatientsScreen() {
           <View style={styles.emptyContainer}>
             <Ionicons name="people-outline" size={64} color="#CBD5E1" />
             <Text style={styles.emptyText}>
-              {searchQuery ? '無相符的搜尋結果' : '目前尚無病患資料'}
+              {searchQuery ? '無相符的搜尋結果' : '目前尚無受測者資料'}
             </Text>
             <Text style={styles.emptySubText}>
-              {searchQuery ? '請嘗試其他關鍵字' : '點選右上角或下方按鈕新增病患'}
+              {searchQuery ? '請嘗試其他關鍵字' : '點選右上角或下方按鈕新增受測者'}
             </Text>
           </View>
         }
@@ -272,7 +295,7 @@ export default function PatientsScreen() {
           const firstChar = patient.name.charAt(0);
 
           return (
-            <View style={[styles.patientCard, isExpanded && styles.patientCardActive]}>
+            <View style={[styles.patientCard, isDark && styles.surfaceDark, isExpanded && styles.patientCardActive]}>
               <TouchableOpacity
                 style={styles.cardMainRow}
                 onPress={() => toggleExpand(patient.id)}
@@ -286,11 +309,15 @@ export default function PatientsScreen() {
                 {/* 基本資訊 */}
                 <View style={styles.infoContainer}>
                   <View style={styles.nameRow}>
-                    <Text style={styles.patientName}>{patient.name}</Text>
-                    <Text style={styles.idText}>{patient.id}</Text>
+                    <Text style={[styles.patientName, isDark && styles.textPrimaryDark]}>{patient.name}</Text>
+                    <Text style={[styles.idText, isDark && styles.textSecondaryDark]}>{patient.id}</Text>
+                    <View style={styles.typeBadge}>
+                      <Text style={styles.typeBadgeText}>{patient.subjectType === 'participant' ? '一般受測者' : '病患'}</Text>
+                    </View>
                   </View>
-                  <Text style={styles.demographicsText}>
-                    {patient.gender === 'M' ? '男' : '女'} · {patient.age} 歲 · 床號: {patient.bedNumber || '無'}
+                  <Text style={[styles.demographicsText, isDark && styles.textSecondaryDark]}>
+                    {patient.gender === 'M' ? '男' : '女'} · {patient.age} 歲
+                    {patient.subjectType === 'participant' ? '' : ` · 床號：${patient.bedNumber || '未分配'}`}
                   </Text>
                 </View>
 
@@ -308,15 +335,14 @@ export default function PatientsScreen() {
               {isExpanded && (
                 <View style={styles.expandedDetail}>
                   {/* 備註與基本詳情 */}
-                  <Text style={styles.detailLabel}>病床號碼</Text>
-                  <Text style={styles.noteText}>
-                    {patient.bedNumber || '未分配床號'}
-                  </Text>
-
-                  <Text style={styles.detailLabel}>臨床備註</Text>
-                  <Text style={styles.noteText}>
-                    {patient.note || '無臨床備註。'}
-                  </Text>
+                  {patient.subjectType !== 'participant' ? (
+                    <>
+                      <Text style={styles.detailLabel}>病床號碼</Text>
+                      <Text style={styles.noteText}>{patient.bedNumber || '未分配床號'}</Text>
+                      <Text style={styles.detailLabel}>臨床備註</Text>
+                      <Text style={styles.noteText}>{patient.note || '無臨床備註。'}</Text>
+                    </>
+                  ) : null}
 
                   <Text style={styles.detailLabel}>建立時間</Text>
                   <Text style={[styles.noteText, { marginBottom: 20 }]}>
@@ -386,7 +412,7 @@ export default function PatientsScreen() {
         activeOpacity={0.8}
       >
         <Ionicons name="add" size={24} color="#FFFFFF" />
-        <Text style={styles.fabText}>新增病患</Text>
+        <Text style={styles.fabText}>新增受測者</Text>
       </TouchableOpacity>
 
       {/* 新增病患對話框 (Modal) */}
@@ -396,16 +422,21 @@ export default function PatientsScreen() {
         visible={modalVisible}
         onRequestClose={handleCancel}
       >
-        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-          <View style={styles.modalOverlay}>
+        <View style={styles.modalOverlay}>
+          <Pressable
+            style={styles.modalBackdrop}
+            onPress={Keyboard.dismiss}
+            accessibilityRole="button"
+            accessibilityLabel="關閉鍵盤"
+          />
             <KeyboardAvoidingView
-              behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+              behavior={Platform.OS === 'ios' ? 'padding' : Platform.OS === 'android' ? 'height' : undefined}
               style={{ flex: 1, justifyContent: 'flex-end' }}
             >
-              <View style={styles.modalContainer}>
+              <View style={[styles.modalContainer, isDark && styles.surfaceDark]}>
                 {/* Modal 標頭 */}
                 <View style={styles.modalHeader}>
-                  <Text style={styles.modalTitle}>新增病患</Text>
+                  <Text style={[styles.modalTitle, isDark && styles.textPrimaryDark]}>新增受測者</Text>
                   <TouchableOpacity
                     style={styles.closeModalButton}
                     onPress={handleCancel}
@@ -417,12 +448,33 @@ export default function PatientsScreen() {
 
                 {/* 表單內容 */}
                 <ScrollView contentContainerStyle={styles.modalContent} keyboardShouldPersistTaps="handled">
+                  <View style={styles.formField}>
+                    <Text style={styles.fieldLabel}>受測者類型 *</Text>
+                    <View style={styles.subjectTypeSelector}>
+                      <TouchableOpacity
+                        style={[styles.subjectTypeButton, subjectType === 'participant' && styles.subjectTypeButtonSelected]}
+                        onPress={() => setSubjectType('participant')}
+                      >
+                        <Text style={[styles.subjectTypeText, subjectType === 'participant' && styles.subjectTypeTextSelected]}>一般受測者</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[styles.subjectTypeButton, subjectType === 'patient' && styles.subjectTypeButtonSelected]}
+                        onPress={() => setSubjectType('patient')}
+                      >
+                        <Text style={[styles.subjectTypeText, subjectType === 'patient' && styles.subjectTypeTextSelected]}>病患</Text>
+                      </TouchableOpacity>
+                    </View>
+                    <Text style={styles.fieldHelper}>
+                      一般受測者可直接測量；病患可再填寫病床與臨床備註。
+                    </Text>
+                  </View>
+
                   {/* 姓名欄位 */}
                   <View style={styles.formField}>
                     <Text style={styles.fieldLabel}>姓名 *</Text>
                     <TextInput
                       style={[styles.input, nameError ? styles.inputError : null]}
-                      placeholder="請輸入病患姓名"
+                      placeholder="請輸入受測者姓名"
                       placeholderTextColor="#94A3B8"
                       value={name}
                       onChangeText={(val) => {
@@ -451,8 +503,8 @@ export default function PatientsScreen() {
                     {ageError ? <Text style={styles.errorText}>{ageError}</Text> : null}
                   </View>
 
-                  {/* 病床號碼欄位 */}
-                  <View style={styles.formField}>
+                  {/* 病患專用臨床欄位 */}
+                  {subjectType === 'patient' ? <View style={styles.formField}>
                     <Text style={styles.fieldLabel}>病床號碼</Text>
                     <TextInput
                       style={styles.input}
@@ -463,7 +515,7 @@ export default function PatientsScreen() {
                       autoCorrect={false}
                       autoCapitalize="none"
                     />
-                  </View>
+                  </View> : null}
 
                   {/* 性別欄位 */}
                   <View style={styles.formField}>
@@ -506,8 +558,7 @@ export default function PatientsScreen() {
                     </View>
                   </View>
 
-                  {/* 備註欄位 */}
-                  <View style={styles.formField}>
+                  {subjectType === 'patient' ? <View style={styles.formField}>
                     <Text style={styles.fieldLabel}>臨床備註</Text>
                     <TextInput
                       style={[styles.input, styles.notesInput]}
@@ -518,7 +569,7 @@ export default function PatientsScreen() {
                       value={note}
                       onChangeText={setNote}
                     />
-                  </View>
+                  </View> : null}
 
                   {/* 按鈕群組 */}
                   <View style={styles.modalButtonsRow}>
@@ -540,8 +591,7 @@ export default function PatientsScreen() {
                 </ScrollView>
               </View>
             </KeyboardAvoidingView>
-          </View>
-        </TouchableWithoutFeedback>
+        </View>
       </Modal>
     </SafeAreaView>
   );
