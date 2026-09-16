@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useRef, ReactNode, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { editRecord, removeRecord } from '../services/record-utils';
 
 const STORAGE_KEYS = {
   patients: '@bowelsound_patients',
@@ -33,6 +34,7 @@ export interface Patient {
  * 腸音採集紀錄介面
  */
 export interface BowelRecord {
+  note?: string;
   /** 紀錄識別碼 (例如: R-2001) */
   id: string;
   /** 關聯的病患 ID */
@@ -70,6 +72,8 @@ export interface BowelRecord {
  * 系統設定介面
  */
 export interface AppSettings {
+  primaryPatientId?: string;
+  onboardingCompleted?: boolean;
   /** API 伺服器網址 */
   apiUrl: string;
   /** 預設錄音時長 (秒) */
@@ -84,6 +88,10 @@ export interface AppSettings {
  * AppContext 提供的 API 與狀態型別定義
  */
 export interface AppContextType {
+  ready: boolean;
+  storageError: string | null;
+  updateRecord: (id: string, changes: Pick<BowelRecord, 'note' | 'symptoms' | 'mealTime' | 'hasCaffeine'>) => void;
+  deleteRecord: (id: string) => void;
   /** 病患列表 */
   patients: Patient[];
   /** 腸音紀錄列表 */
@@ -91,7 +99,7 @@ export interface AppContextType {
   /** 系統設定 */
   settings: AppSettings;
   /** 新增病患 */
-  addPatient: (patient: Omit<Patient, 'id' | 'createdAt'>) => void;
+  addPatient: (patient: Omit<Patient, 'id' | 'createdAt'>) => Patient;
   /** 新增腸音紀錄，並回傳新增的紀錄物件 */
   addRecord: (patientId: string, duration: number, hasCaffeine: boolean, symptoms: string[], mealTime: string, decibelLevel: number) => BowelRecord;
   /** 更新系統設定 (支援局部更新) */
@@ -140,6 +148,8 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
  * AppProvider 元件：包覆在應用程式最外層，提供全域狀態
  */
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+  const [ready, setReady] = useState(false);
+  const [storageError, setStorageError] = useState<string | null>(null);
   // 預載 3 位病患的模擬資料 (ID: P-1001, P-1002, P-1003)
   const [patients, setPatients] = useState<Patient[]>([
     {
@@ -282,10 +292,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           const parsedSettings: Partial<AppSettings> = JSON.parse(storedSettings);
           setSettings(current => ({ ...current, ...parsedSettings }));
         }
+        hasHydratedRef.current = true;
       } catch (e) {
+        setStorageError('無法讀取本機資料。請重新開啟 APP，避免覆蓋尚未載入的紀錄。');
         console.error('載入本機資料失敗', e);
       } finally {
-        hasHydratedRef.current = true;
+        setReady(hasHydratedRef.current);
       }
     };
     hydrate();
@@ -294,23 +306,23 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   useEffect(() => {
     if (!hasHydratedRef.current) return;
     AsyncStorage.setItem(STORAGE_KEYS.patients, JSON.stringify(patients)).catch(error =>
-      console.error('儲存病患資料失敗', error)
+      { setStorageError('資料尚未成功寫入裝置，請勿關閉 APP。請確認裝置儲存空間。'); console.error('儲存個人資料失敗', error); }
     );
-  }, [patients]);
+  }, [patients, ready]);
 
   useEffect(() => {
     if (!hasHydratedRef.current) return;
     AsyncStorage.setItem(STORAGE_KEYS.records, JSON.stringify(records)).catch(error =>
-      console.error('儲存檢測紀錄失敗', error)
+      { setStorageError('紀錄尚未成功寫入裝置，請勿關閉 APP。請確認裝置儲存空間。'); console.error('儲存紀錄失敗', error); }
     );
-  }, [records]);
+  }, [records, ready]);
 
   useEffect(() => {
     if (!hasHydratedRef.current) return;
     AsyncStorage.setItem(STORAGE_KEYS.settings, JSON.stringify(settings)).catch(error =>
-      console.error('儲存系統設定失敗', error)
+      { setStorageError('設定尚未成功寫入裝置，請勿關閉 APP。請確認裝置儲存空間。'); console.error('儲存設定失敗', error); }
     );
-  }, [settings]);
+  }, [settings, ready]);
 
   /**
    * 新增病患資訊，自動生成遞增 ID (如 P-1004) 與目前 ISO 時間
@@ -326,6 +338,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     };
     
     setPatients(prev => [...prev, newPatient]);
+    return newPatient;
   };
 
   /**
@@ -399,7 +412,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
 
   return (
-    <AppContext.Provider value={{ patients, records, settings, addPatient, addRecord, updateSettings }}>
+    <AppContext.Provider value={{ patients, records, settings, ready, storageError, addPatient, addRecord, updateSettings,
+      updateRecord: (id, changes) => setRecords(prev => editRecord(prev, id, changes)),
+      deleteRecord: id => setRecords(prev => removeRecord(prev, id)),
+    }}>
       {children}
     </AppContext.Provider>
   );

@@ -17,12 +17,12 @@ export default function TabLayout() {
         tabBarButton: HapticTab,
         tabBarHideOnKeyboard: true,
         tabBarLabelStyle: {
-          fontSize: 11,
+          fontSize: 14,
           fontWeight: '700',
           marginTop: 1,
         },
         tabBarStyle: {
-          height: 64,
+          minHeight: 68,
           paddingTop: 7,
           paddingBottom: 7,
           borderTopWidth: 1,
@@ -41,10 +41,12 @@ export default function TabLayout() {
       <Tabs.Screen
         name="explore"
         options={{
-          title: '摘要',
+          title: '紀錄',
           tabBarIcon: ({ color, focused }) => <Ionicons size={23} name={focused ? 'clipboard' : 'clipboard-outline'} color={color} />,
         }}
       />
+      <Tabs.Screen name="knowledge" options={{ title: '知識', tabBarIcon: ({ color }) => <Ionicons size={23} name="book-outline" color={color} /> }} />
+      <Tabs.Screen name="me" options={{ title: '我的', tabBarIcon: ({ color }) => <Ionicons size={23} name="person-outline" color={color} /> }} />
     </Tabs>
   );
 }

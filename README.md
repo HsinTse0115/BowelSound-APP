@@ -1,50 +1,44 @@
-# Welcome to your Expo app 👋
+# BowelSound
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+一般使用者版展示 APP（Expo / React Native）。
 
-## Get started
+目前沒有真實錄音、藍牙感測器或 AI 推論。介面上的波形、頻譜與分類皆為模擬；資料存於本機 AsyncStorage。既有個人資料與紀錄沿用原本的儲存鍵，不會因本次介面改版清除。
 
-1. Install dependencies
+## 使用流程
 
-   ```bash
-   npm install
-   ```
+首頁 → 四步教學 → 建立本人資料 → 啟用展示裝置 → 選擇時長與填寫狀態 → 展示量測 → 查看／編輯紀錄。
 
-2. Start the app
+底部導覽為首頁、紀錄、知識、我的。「我的」可設定本人、管理家人、調整展示時長與淺／深色外觀；API 設定收在開發者設定。
 
-   ```bash
-   npx expo start
-   ```
+## 執行
 
-In the output, you'll find options to open the app in a
+- `npm install`
+- `npm run web`：網頁預覽。
+- `npm run android` / `npm run ios`：支援的原生開發環境。
+- `npx tsc --noEmit`：型別檢查（新增路由後先啟動 Expo，更新自動產生的路由型別）。
+- `npm run lint`：靜態檢查。
+- `npm test`：日期篩選、編輯保留原始分析、刪除隔離測試。
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+受限環境可用 PowerShell 啟動離線單程序預覽：
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
-
-```bash
-npm run reset-project
+```powershell
+$env:EXPO_OFFLINE='1'
+$env:BROWSER='none'
+npx expo start --port 8091 --max-workers 1
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+再開啟 http://localhost:8091 。
 
-## Learn more
+## 本次驗證
 
-To learn more about developing your project with Expo, look at the following resources:
+- TypeScript 與 ESLint。
+- 日期合法性、包含起訖日邊界、近 7 天與對象交集、排序不改動原資料。
+- 編輯保留原始日期／分析、刪除只影響指定紀錄。
+- 390 × 844 網頁預覽：教學接續建立本人、預設本人、量測離開確認與取消不新增紀錄、10 秒自動完成。
+- 編輯儲存後重新載入、未儲存修改離開確認、刪除確認的保留操作、日期無效提示、深色知識頁。
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+## 後續實機驗收
 
-## Join the community
+尚未在 Android／iOS 實機測試。請確認鍵盤遮擋、系統字體放大、安全區域、Android 返回鍵、iOS 返回手勢與切換背景時的取消流程。
 
-Join our community of developers creating universal apps.
-
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+實際感測器的放置圖、量測品質判定與醫療／飲食衛教需要設備規格和專業審閱後才能提供。目前知識頁提供操作說明，不展示舊版未查核的疾病判斷與飲食指示。

@@ -33,6 +33,7 @@ function AppNavigation() {
           <Stack.Screen name="settings" options={{ headerShown: false }} />
           <Stack.Screen name="profile" options={{ headerShown: false }} />
           <Stack.Screen name="education" options={{ headerShown: false }} />
+          <Stack.Screen name="guide" options={{ headerShown: false }} />
         </Stack>
         <StatusBar style={isDark ? 'light' : 'dark'} />
       </ThemeProvider>

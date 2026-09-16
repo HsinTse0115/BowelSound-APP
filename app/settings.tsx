@@ -1,282 +1,49 @@
-// app/settings.tsx
-import React, { useState, useEffect } from 'react';
-import { Alert, SafeAreaView, ScrollView, Text, TextInput, TouchableOpacity, View, Switch } from 'react-native';
-import { useRouter } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+import React, { useEffect, useState } from 'react';
+import { View } from 'react-native';
+import { usePathname, useRouter } from 'expo-router';
+import { useApp } from '@/context/AppContext';
+import { Screen, Card, Copy, Button, Chip, Field, DemoNotice, ui } from '@/components/consumer-ui';
+import { apiRequest, normalizeApiUrl } from '@/services/api';
 
-import { useApp } from '../context/AppContext';
-import { styles } from '../styles/settings.styles';
-import { apiRequest, normalizeApiUrl } from '../services/api';
-
-/**
- * 系統設定頁面元件
- * 
- * 此頁面提供使用者配置系統參數，包含：
- * 1. API 伺服器網址連線設定
- * 2. 預設錄音時長選擇
- * 3. 模擬腸音探頭藍牙連線狀態切換
- * 4. 顯示唯讀系統資訊
- */
 export default function SettingsScreen() {
   const router = useRouter();
-  const { settings, updateSettings } = useApp();
-  const isDark = settings.themeMode === 'dark';
-
-  // API 網址的本地輸入狀態，當使用者點選儲存時才同步至全域 Context
-  const [localApiUrl, setLocalApiUrl] = useState(settings.apiUrl);
-  // 控制是否顯示「儲存成功」的提示文字
-  const [showSavedFeedback, setShowSavedFeedback] = useState(false);
-  const [isTestingConnection, setIsTestingConnection] = useState(false);
-
-  // 當全域設定的 API 網址改變時（例如初始化），同步更新本地輸入狀態
-  useEffect(() => {
-    setLocalApiUrl(settings.apiUrl);
-  }, [settings.apiUrl]);
-
-  /**
-   * 處理 API 伺服器網址儲存
-   */
-  const handleSaveApiUrl = () => {
-    let normalized: string;
-    try {
-      normalized = normalizeApiUrl(localApiUrl);
-    } catch (error) {
-      Alert.alert('網址格式錯誤', error instanceof Error ? error.message : '請檢查 API 網址');
-      return;
-    }
-    setLocalApiUrl(normalized);
-    updateSettings({ apiUrl: normalized });
-    setShowSavedFeedback(true);
-    
-    // 2 秒後自動隱藏儲存成功提示
-    const timer = setTimeout(() => {
-      setShowSavedFeedback(false);
-    }, 2000);
-
-    return () => clearTimeout(timer);
+  const pathname = usePathname();
+  const { settings, patients, updateSettings } = useApp();
+  const [advanced, setAdvanced] = useState(false);
+  const [url, setUrl] = useState(settings.apiUrl);
+  const [message, setMessage] = useState('');
+  const [testing, setTesting] = useState(false);
+  useEffect(() => setUrl(settings.apiUrl), [settings.apiUrl]);
+  const person = patients.find(p => p.id === settings.primaryPatientId);
+  const save = () => {
+    try { const value = normalizeApiUrl(url); updateSettings({ apiUrl: value }); setUrl(value); setMessage('已儲存網址。'); }
+    catch (error) { setMessage(error instanceof Error ? error.message : '請檢查網址格式。'); }
   };
-
-  const handleTestConnection = async () => {
-    setIsTestingConnection(true);
-    try {
-      const normalized = normalizeApiUrl(localApiUrl);
-      const response = await apiRequest(normalized, '/api/health', {}, 5000);
-      if (!response.ok) throw new Error(`伺服器回應 ${response.status}`);
-      Alert.alert('連線成功', 'API 伺服器可以正常存取');
-    } catch (error) {
-      Alert.alert('連線失敗', error instanceof Error ? error.message : '請確認網址與網路狀態');
-    } finally {
-      setIsTestingConnection(false);
-    }
+  const test = async () => {
+    setTesting(true); setMessage('');
+    try { const response = await apiRequest(normalizeApiUrl(url), '/api/health', {}, 5000); if (!response.ok) throw new Error('伺服器回應 ' + response.status); setMessage('伺服器可連線。量測功能仍使用模擬資料。'); }
+    catch (error) { setMessage(error instanceof Error ? error.message : '連線失敗，請稍後重試。'); }
+    finally { setTesting(false); }
   };
-
-  /**
-   * 處理預設錄音時長變更
-   * @param duration 錄音秒數（0 代表不限）
-   */
-  const handleDurationSelect = (duration: number) => {
-    updateSettings({ defaultDuration: duration });
-  };
-
-  /**
-   * 處理模擬腸音探頭連線狀態切換
-   * @param value true 表示已連線，false 表示未連線
-   */
-  const handleHardwareToggle = (value: boolean) => {
-    updateSettings({ hardwareConnected: value });
-  };
-
-  const handleThemeChange = (themeMode: 'light' | 'dark') => {
-    updateSettings({ themeMode });
-  };
-
-  // 定義時長選項與其對應的顯示文字
-  const durationOptions = [
-    { label: '10 秒', value: 10 },
-    { label: '30 秒', value: 30 },
-    { label: '60 秒', value: 60 },
-    { label: '不限', value: 0 },
-  ];
-
-  return (
-    <SafeAreaView style={[styles.container, isDark && styles.containerDark]}>
-      {/* 頂部導覽列 */}
-      <View style={[styles.header, isDark && styles.headerDark]}>
-        <TouchableOpacity 
-          style={styles.backButton} 
-          onPress={() => router.back()}
-          activeOpacity={0.7}
-        >
-          <Ionicons name="chevron-back" size={28} color={isDark ? '#EEF2F5' : '#1E293B'} />
-        </TouchableOpacity>
-        <Text style={[styles.headerTitle, isDark && styles.textPrimaryDark]}>系統設定</Text>
-      </View>
-
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        
-        {/* 1. API 連線設定 */}
-        <View style={[styles.section, isDark && styles.sectionDark]}>
-          <View style={styles.sectionHeader}>
-            <View style={[styles.sectionIconContainer, { backgroundColor: '#E8F4FD' }]}>
-              <Ionicons name="globe-outline" size={20} color="#0D6EFD" />
-            </View>
-            <Text style={[styles.sectionTitle, isDark && styles.textPrimaryDark]}>API 連線設定</Text>
-          </View>
-          
-          <View style={[styles.inputContainer, isDark && styles.inputContainerDark]}>
-            <TextInput
-              style={[styles.input, isDark && styles.inputDark]}
-              value={localApiUrl}
-              onChangeText={setLocalApiUrl}
-              placeholder="請輸入 API 伺服器網址"
-              placeholderTextColor="#94A3B8"
-              keyboardType="url"
-              autoCapitalize="none"
-              autoCorrect={false}
-            />
-            <TouchableOpacity 
-              style={styles.saveButton} 
-              onPress={handleSaveApiUrl}
-              activeOpacity={0.8}
-            >
-              <Text style={styles.saveButtonText}>儲存</Text>
-            </TouchableOpacity>
-          </View>
-          
-          {showSavedFeedback && (
-            <View style={styles.savedFeedback}>
-              <Ionicons name="checkmark-circle" size={16} color="#10B981" style={{ marginRight: 4 }} />
-              <Text style={{ color: '#10B981', fontSize: 13, fontWeight: '600' }}>設定已成功儲存</Text>
-            </View>
-          )}
-          <TouchableOpacity
-            style={[styles.testButton, isTestingConnection && styles.testButtonDisabled]}
-            onPress={handleTestConnection}
-            disabled={isTestingConnection}
-            activeOpacity={0.75}
-          >
-            <Ionicons name="pulse-outline" size={18} color="#1478F2" />
-            <Text style={styles.testButtonText}>{isTestingConnection ? '測試中…' : '測試 API 連線'}</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* 2. 錄音時長設定 */}
-        <View style={[styles.section, isDark && styles.sectionDark]}>
-          <View style={styles.sectionHeader}>
-            <View style={[styles.sectionIconContainer, { backgroundColor: '#F3E8FF' }]}>
-              <Ionicons name="time-outline" size={20} color="#8B5CF6" />
-            </View>
-            <Text style={[styles.sectionTitle, isDark && styles.textPrimaryDark]}>預設錄音時長</Text>
-          </View>
-          
-          <View style={styles.buttonGroup}>
-            {durationOptions.map((option) => {
-              const isActive = settings.defaultDuration === option.value;
-              return (
-                <TouchableOpacity
-                  key={option.value}
-                  style={[styles.durationBtn, isActive && styles.durationBtnActive]}
-                  onPress={() => handleDurationSelect(option.value)}
-                  activeOpacity={0.8}
-                >
-                  <Text style={[styles.durationBtnText, isActive && styles.durationBtnTextActive]}>
-                    {option.label}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-        </View>
-
-        {/* 3. 探頭連線模擬 */}
-        <View style={[styles.section, isDark && styles.sectionDark]}>
-          <View style={styles.sectionHeader}>
-            <View style={[styles.sectionIconContainer, { backgroundColor: '#E6F8F3' }]}>
-              <Ionicons name="radio-outline" size={20} color="#10B981" />
-            </View>
-            <Text style={[styles.sectionTitle, isDark && styles.textPrimaryDark]}>感測器硬體模擬</Text>
-          </View>
-
-          <View style={styles.switchRow}>
-            <View style={styles.switchLabelContainer}>
-              <Text style={[styles.switchLabel, isDark && styles.textPrimaryDark]}>模擬腸音探頭連線</Text>
-              <View style={[
-                styles.statusBadge, 
-                settings.hardwareConnected ? styles.statusBadgeConnected : styles.statusBadgeDisconnected
-              ]}>
-                <Text style={
-                  settings.hardwareConnected ? styles.statusBadgeTextConnected : styles.statusBadgeTextDisconnected
-                }>
-                  {settings.hardwareConnected ? '已連線' : '未連線'}
-                </Text>
-              </View>
-            </View>
-            <Switch
-              value={settings.hardwareConnected}
-              onValueChange={handleHardwareToggle}
-              trackColor={{ false: '#CBD5E1', true: '#A7F3D0' }}
-              thumbColor={settings.hardwareConnected ? '#10B981' : '#F1F5F9'}
-              ios_backgroundColor="#CBD5E1"
-            />
-          </View>
-        </View>
-
-        {/* 4. 系統資訊面板 */}
-        <View style={[styles.section, isDark && styles.sectionDark]}>
-          <View style={styles.sectionHeader}>
-            <View style={[styles.sectionIconContainer, { backgroundColor: '#EEF2FF' }]}>
-              <Ionicons name="contrast-outline" size={20} color="#5267C9" />
-            </View>
-            <Text style={[styles.sectionTitle, isDark && styles.textPrimaryDark]}>介面外觀</Text>
-          </View>
-          <View style={styles.themeGroup}>
-            {([
-              { value: 'light', label: 'Light', icon: 'sunny-outline' },
-              { value: 'dark', label: 'Dark', icon: 'moon-outline' },
-            ] as const).map(option => {
-              const selected = settings.themeMode === option.value;
-              return (
-                <TouchableOpacity
-                  key={option.value}
-                  accessibilityRole="button"
-                  accessibilityState={{ selected }}
-                  style={[styles.themeButton, isDark && styles.themeButtonDark, selected && styles.themeButtonSelected]}
-                  onPress={() => handleThemeChange(option.value)}
-                >
-                  <Ionicons name={option.icon} size={19} color={selected ? '#FFFFFF' : '#64748B'} />
-                  <Text style={[styles.themeButtonText, selected && styles.themeButtonTextSelected]}>{option.label}</Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-        </View>
-
-        {/* 5. 系統資訊面板 */}
-        <View style={[styles.section, isDark && styles.sectionDark]}>
-          <View style={styles.sectionHeader}>
-            <View style={[styles.sectionIconContainer, { backgroundColor: '#F3F4F6' }]}>
-              <Ionicons name="information-circle-outline" size={20} color="#6B7280" />
-            </View>
-            <Text style={[styles.sectionTitle, isDark && styles.textPrimaryDark]}>系統資訊</Text>
-          </View>
-
-          <View style={styles.infoRow}>
-            <Text style={[styles.infoKey, isDark && styles.textSecondaryDark]}>App 版本號</Text>
-            <Text style={[styles.infoVal, isDark && styles.textPrimaryDark]}>v1.0.0</Text>
-          </View>
-
-          <View style={styles.infoRow}>
-            <Text style={[styles.infoKey, isDark && styles.textSecondaryDark]}>AI 模型版本號</Text>
-            <Text style={[styles.infoVal, isDark && styles.textPrimaryDark]}>Edge-BowelSound-v1.2</Text>
-          </View>
-
-          <View style={[styles.infoRow, styles.infoRowLast]}>
-            <Text style={[styles.infoKey, isDark && styles.textSecondaryDark]}>系統運行環境</Text>
-            <Text style={[styles.infoVal, isDark && styles.textPrimaryDark]}>React Native / Expo Go</Text>
-          </View>
-        </View>
-
-      </ScrollView>
-    </SafeAreaView>
-  );
+  return <Screen title="我的" back={pathname === '/settings'}>
+    <Card><Copy title>{person?.name || '還沒有設定本人'}</Copy><Copy muted>管理本人與家人的資料，選擇預設量測對象。</Copy>
+      <Button label="本人與家人資料" secondary onPress={() => router.push('/patients')} />
+      <Button label="操作教學" secondary onPress={() => router.push('/guide')} />
+    </Card>
+    <DemoNotice />
+    <Card><Copy title>展示裝置</Copy><Copy>{settings.hardwareConnected ? '已啟用模擬連線' : '尚未啟用'}</Copy>
+      <Button label={settings.hardwareConnected ? '停用展示裝置' : '啟用展示裝置'} secondary onPress={() => updateSettings({ hardwareConnected: !settings.hardwareConnected })} />
+      <Copy muted>這個開關只控制展示狀態，不會搜尋或連接藍牙設備。</Copy>
+    </Card>
+    <Card><Copy title>預設展示時長</Copy><View style={ui.row}>{[10, 30, 60, 0].map(value => <Chip key={value} label={value ? value + ' 秒' : '不限時'} selected={settings.defaultDuration === value} onPress={() => updateSettings({ defaultDuration: value })} />)}</View></Card>
+    <Card><Copy title>介面外觀</Copy><View style={ui.row}><Chip label="淺色" selected={settings.themeMode === 'light'} onPress={() => updateSettings({ themeMode: 'light' })} /><Chip label="深色" selected={settings.themeMode === 'dark'} onPress={() => updateSettings({ themeMode: 'dark' })} /></View></Card>
+    <Card><Copy title>資料與隱私</Copy><Copy>目前個人資料與紀錄保存在這台裝置的 APP 儲存空間；網頁版則保存在此瀏覽器。量測流程不會上傳資料，也沒有雲端備份。</Copy><Copy muted>清除 APP／瀏覽器資料可能失去紀錄。可在每筆紀錄內編輯或刪除量測資料。</Copy></Card>
+    <Button label={advanced ? '收合開發者設定' : '開發者設定'} secondary onPress={() => setAdvanced(!advanced)} />
+    {advanced && <Card><Copy title>API 連線設定</Copy><Copy muted>供開發測試使用；測試連線只會向指定網址發出健康檢查請求。</Copy>
+      <Field accessibilityLabel="API 伺服器網址" value={url} onChangeText={setUrl} autoCapitalize="none" keyboardType="url" />
+      <Button label="儲存網址" onPress={save} /><Button label={testing ? '測試中…' : '測試連線'} secondary disabled={testing} onPress={test} />
+      {!!message && <Copy>{message}</Copy>}
+    </Card>}
+    <Copy muted>BowelSound 1.0.0 · 展示版本</Copy>
+  </Screen>;
 }
