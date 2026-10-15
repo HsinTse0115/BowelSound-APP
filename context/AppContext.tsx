@@ -252,7 +252,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   // 系統設定預設狀態
   const [settings, setSettings] = useState<AppSettings>({
     apiUrl: 'http://localhost:8000',
-    defaultDuration: 10,
+    defaultDuration: 20,
     hardwareConnected: false,
     themeMode: 'light',
   });
@@ -290,7 +290,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         }
         if (storedSettings) {
           const parsedSettings: Partial<AppSettings> = JSON.parse(storedSettings);
-          setSettings(current => ({ ...current, ...parsedSettings }));
+          setSettings(current => ({ ...current, ...parsedSettings, defaultDuration: 20 }));
         }
         hasHydratedRef.current = true;
       } catch (e) {

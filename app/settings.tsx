@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { View } from 'react-native';
 import { usePathname, useRouter } from 'expo-router';
 import { useApp } from '@/context/AppContext';
@@ -10,10 +10,10 @@ export default function SettingsScreen() {
   const pathname = usePathname();
   const { settings, patients, updateSettings } = useApp();
   const [advanced, setAdvanced] = useState(false);
-  const [url, setUrl] = useState(settings.apiUrl);
+  const [urlDraft, setUrl] = useState<string>();
+  const url = urlDraft ?? settings.apiUrl;
   const [message, setMessage] = useState('');
   const [testing, setTesting] = useState(false);
-  useEffect(() => setUrl(settings.apiUrl), [settings.apiUrl]);
   const person = patients.find(p => p.id === settings.primaryPatientId);
   const save = () => {
     try { const value = normalizeApiUrl(url); updateSettings({ apiUrl: value }); setUrl(value); setMessage('已儲存網址。'); }
@@ -29,13 +29,14 @@ export default function SettingsScreen() {
     <Card><Copy title>{person?.name || '還沒有設定本人'}</Copy><Copy muted>管理本人與家人的資料，選擇預設量測對象。</Copy>
       <Button label="本人與家人資料" secondary onPress={() => router.push('/patients')} />
       <Button label="操作教學" secondary onPress={() => router.push('/guide')} />
+      <Button label="知識與使用說明" secondary onPress={() => router.push('/education')} />
     </Card>
     <DemoNotice />
     <Card><Copy title>展示裝置</Copy><Copy>{settings.hardwareConnected ? '已啟用模擬連線' : '尚未啟用'}</Copy>
       <Button label={settings.hardwareConnected ? '停用展示裝置' : '啟用展示裝置'} secondary onPress={() => updateSettings({ hardwareConnected: !settings.hardwareConnected })} />
       <Copy muted>這個開關只控制展示狀態，不會搜尋或連接藍牙設備。</Copy>
     </Card>
-    <Card><Copy title>預設展示時長</Copy><View style={ui.row}>{[10, 30, 60, 0].map(value => <Chip key={value} label={value ? value + ' 秒' : '不限時'} selected={settings.defaultDuration === value} onPress={() => updateSettings({ defaultDuration: value })} />)}</View></Card>
+    <Card><Copy title>量測時間</Copy><Copy>每次 20 秒</Copy><Copy muted>配合目前硬體收音長度，時間到會自動結束。</Copy></Card>
     <Card><Copy title>介面外觀</Copy><View style={ui.row}><Chip label="淺色" selected={settings.themeMode === 'light'} onPress={() => updateSettings({ themeMode: 'light' })} /><Chip label="深色" selected={settings.themeMode === 'dark'} onPress={() => updateSettings({ themeMode: 'dark' })} /></View></Card>
     <Card><Copy title>資料與隱私</Copy><Copy>目前個人資料與紀錄保存在這台裝置的 APP 儲存空間；網頁版則保存在此瀏覽器。量測流程不會上傳資料，也沒有雲端備份。</Copy><Copy muted>清除 APP／瀏覽器資料可能失去紀錄。可在每筆紀錄內編輯或刪除量測資料。</Copy></Card>
     <Button label={advanced ? '收合開發者設定' : '開發者設定'} secondary onPress={() => setAdvanced(!advanced)} />

@@ -8,8 +8,8 @@ import { useApp } from '@/context/AppContext';
 export function usePalette() {
   const { settings } = useApp();
   return settings.themeMode === 'dark'
-    ? { bg: '#101820', card: '#192633', text: '#EEF4FA', muted: '#B3C1CF', line: '#3D5062', tint: '#8CBDFF', soft: '#233B52' }
-    : { bg: '#F5F8FC', card: '#FFFFFF', text: '#192D42', muted: '#53677B', line: '#D7E1EC', tint: '#1264C4', soft: '#EAF3FF' };
+    ? { bg: '#151515', card: '#222222', text: '#F5F5F5', muted: '#BBBBBB', line: '#444444', tint: '#EEEEEE', soft: '#333333' }
+    : { bg: '#F5F5F5', card: '#FFFFFF', text: '#202020', muted: '#666666', line: '#DDDDDD', tint: '#303030', soft: '#EBEBEB' };
 }
 export function Copy({ children, muted = false, title = false }: PropsWithChildren<{ muted?: boolean; title?: boolean }>) {
   const p = usePalette();
@@ -22,14 +22,14 @@ export function Card({ children }: PropsWithChildren) {
 export function Button({ label, onPress, secondary = false, disabled = false, danger = false }: { label: string; onPress: () => void; secondary?: boolean; disabled?: boolean; danger?: boolean }) {
   const p = usePalette();
   return <Pressable accessibilityRole="button" accessibilityState={{ disabled }} disabled={disabled} onPress={onPress}
-    style={({ pressed }) => [ui.button, { backgroundColor: secondary ? p.soft : danger ? '#B63740' : '#1264C4', opacity: disabled ? 0.45 : pressed ? 0.75 : 1 }]}>
+    style={({ pressed }) => [ui.button, { backgroundColor: secondary ? p.soft : danger ? '#444444' : '#242424', opacity: disabled ? 0.45 : pressed ? 0.75 : 1 }]}>
     <Text style={{ color: secondary ? p.tint : '#FFFFFF', fontSize: 16, fontWeight: '700', textAlign: 'center' }}>{label}</Text>
   </Pressable>;
 }
 export function Chip({ label, selected, onPress }: { label: string; selected: boolean; onPress: () => void }) {
   const p = usePalette();
-  return <Pressable onPress={onPress} accessibilityRole="button" accessibilityState={{ selected }}
-    style={[ui.chip, { backgroundColor: selected ? '#1264C4' : p.card, borderColor: selected ? '#1264C4' : p.line }]}>
+  return <Pressable onPress={onPress} accessibilityRole="button" aria-pressed={selected} accessibilityState={{ selected }}
+    style={[ui.chip, { backgroundColor: selected ? '#303030' : p.card, borderColor: selected ? '#303030' : p.line }]}>
     <Text style={{ color: selected ? '#FFFFFF' : p.text, fontSize: 15 }}>{selected ? '✓ ' : ''}{label}</Text>
   </Pressable>;
 }

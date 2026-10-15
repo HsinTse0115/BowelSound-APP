@@ -36,6 +36,9 @@ yarn-error.*
 # typescript
 *.tsbuildinfo
 
+# Temporary PDF preview renders
+/tmp/pdfs/
+
 app-example
 
 # generated native folders

@@ -1,9 +1,9 @@
-import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
-import { Stack } from 'expo-router';
+import { DarkTheme, DefaultTheme, ThemeProvider, Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import 'react-native-reanimated';
 
 import { AppProvider, useApp } from '@/context/AppContext';
+import { WellnessProvider } from '@/context/WellnessContext';
 
 export const unstable_settings = {
   initialRouteName: 'index',
@@ -12,7 +12,7 @@ export const unstable_settings = {
 export default function RootLayout() {
   return (
     <AppProvider>
-      <AppNavigation />
+      <WellnessProvider><AppNavigation /></WellnessProvider>
     </AppProvider>
   );
 }
@@ -22,21 +22,21 @@ function AppNavigation() {
   const isDark = settings.themeMode === 'dark';
 
   return (
-      <ThemeProvider value={isDark ? DarkTheme : DefaultTheme}>
-        <Stack>
-          <Stack.Screen name="index" options={{ headerShown: false }} />
-          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-          <Stack.Screen name="record" options={{ headerShown: false }} />
-          <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
-          <Stack.Screen name="patients" options={{ headerShown: false }} />
-          <Stack.Screen name="analytics" options={{ headerShown: false }} />
-          <Stack.Screen name="settings" options={{ headerShown: false }} />
-          <Stack.Screen name="profile" options={{ headerShown: false }} />
-          <Stack.Screen name="education" options={{ headerShown: false }} />
-          <Stack.Screen name="guide" options={{ headerShown: false }} />
-        </Stack>
-        <StatusBar style={isDark ? 'light' : 'dark'} />
-      </ThemeProvider>
+    <ThemeProvider value={isDark ? DarkTheme : DefaultTheme}>
+      <Stack>
+        <Stack.Screen name="index" options={{ headerShown: false }} />
+        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen name="record" options={{ headerShown: false }} />
+        <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
+        <Stack.Screen name="patients" options={{ headerShown: false }} />
+        <Stack.Screen name="analytics" options={{ headerShown: false }} />
+        <Stack.Screen name="settings" options={{ headerShown: false }} />
+        <Stack.Screen name="profile" options={{ headerShown: false }} />
+        <Stack.Screen name="education" options={{ headerShown: false }} />
+        <Stack.Screen name="guide" options={{ headerShown: false }} />
+        <Stack.Screen name="daily" options={{ headerShown: false }} />
+      </Stack>
+      <StatusBar style={isDark ? 'light' : 'dark'} />
+    </ThemeProvider>
   );
 }
-

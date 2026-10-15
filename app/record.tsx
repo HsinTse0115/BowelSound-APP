@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { AppState, Text, View } from 'react-native';
 import { useLocalSearchParams, useRouter, useNavigation } from 'expo-router';
-import { usePreventRemove } from '@react-navigation/native';
+import { usePreventRemove } from 'expo-router/build/react-navigation/native';
 import { useApp } from '@/context/AppContext';
 import { Screen, Card, Copy, Button, Chip, DemoNotice, Confirm, ui, usePalette, mealOptions, symptomOptions, toggleSymptom } from '@/components/consumer-ui';
 import { WaveformVisualizer } from '@/components/WaveformVisualizer';
@@ -13,7 +13,7 @@ export default function RecordScreen() {
   const { patients, settings, ready, updateSettings, addRecord } = useApp();
   const p = usePalette();
   const [selected, setSelected] = useState(patientId || settings.primaryPatientId || '');
-  const [duration, setDuration] = useState(settings.defaultDuration);
+  const duration = 20;
   const [meal, setMeal] = useState('未填寫');
   const [symptoms, setSymptoms] = useState<string[]>([]);
   const [caffeine, setCaffeine] = useState(false);
@@ -29,9 +29,13 @@ export default function RecordScreen() {
   const selectedPerson = patients.find(person => person.id === selected);
 
   useEffect(() => {
-    if (ready) { setSelected(patientId || settings.primaryPatientId || ''); setDuration(settings.defaultDuration); }
+    if (completedId && !running) router.replace({ pathname: '/analytics', params: { recordId: completedId } });
+  }, [completedId, running, router]);
+
+  useEffect(() => {
+    if (ready) { setSelected(patientId || settings.primaryPatientId || ''); }
   }, [ready, patientId, settings.primaryPatientId, settings.defaultDuration]);
-  usePreventRemove(running, ({ data }) => { exitAction.current = data.action; setConfirm(true); });
+  usePreventRemove(running, ({ data }: any) => { exitAction.current = data.action; setConfirm(true); });
   useEffect(() => {
     if (leaving && !running) {
       const action = exitAction.current;
@@ -106,7 +110,7 @@ export default function RecordScreen() {
         <Copy muted>展示模式不會讀取麥克風，也不會實測環境音量。</Copy>
         {!settings.hardwareConnected && <Button label="啟用展示裝置" secondary onPress={() => updateSettings({ hardwareConnected: true })} />}
         <Button label="查看操作教學" secondary onPress={() => router.push('/guide')} />
-        <Copy>這次展示時長</Copy><View style={ui.row}>{[10, 30, 60, 0].map(value => <Chip key={value} label={value ? value + ' 秒' : '不限時'} selected={duration === value} onPress={() => setDuration(value)} />)}</View>
+        <Copy>量測時間：20 秒，到時自動完成。</Copy>
       </Card>
       <Card>
         <Copy title>記錄當下狀態</Copy><Copy muted>症狀與飯後時間可留空，會標記為「未填寫」。</Copy>

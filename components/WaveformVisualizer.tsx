@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { View, StyleSheet } from 'react-native';
+import { usePalette } from './consumer-ui';
 
 /**
  * WaveformVisualizer 元件屬性介面
@@ -15,6 +16,7 @@ interface WaveformVisualizerProps {
  * 當停止錄音時，波形會以平滑動畫回歸至水平直線（靜止狀態）。
  */
 export const WaveformVisualizer: React.FC<WaveformVisualizerProps> = ({ isRecording }) => {
+  const p = usePalette();
   const BAR_COUNT = 36; // 顯示的波形柱狀條數量
   const [heights, setHeights] = useState<number[]>(Array(BAR_COUNT).fill(4));
   const animationRef = useRef<number | null>(null);
@@ -105,7 +107,7 @@ export const WaveformVisualizer: React.FC<WaveformVisualizerProps> = ({ isRecord
             visualizerStyles.bar,
             {
               height: height,
-              backgroundColor: isRecording ? '#0D6EFD' : '#94A3B8', // 錄音中為科技藍，靜止為灰
+              backgroundColor: isRecording ? p.tint : p.muted,
               opacity: isRecording ? 0.9 : 0.4,
             },
           ]}

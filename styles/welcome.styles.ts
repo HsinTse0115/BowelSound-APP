@@ -34,7 +34,7 @@ export const styles = StyleSheet.create({
   visualColumnWide: { minHeight: 520 },
   imageFrame: { flex: 1, minHeight: 380, borderRadius: 36, overflow: 'hidden', backgroundColor: '#102D38', borderWidth: 1, borderColor: '#2A4651' },
   hardwareImage: { width: '100%', height: '100%', position: 'absolute' },
-  imageShade: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(3, 20, 28, 0.34)' },
+  imageShade: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(3, 20, 28, 0.34)' },
   signalBadge: { position: 'absolute', left: 18, right: 18, bottom: 18, flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, borderRadius: 20, backgroundColor: 'rgba(7, 26, 37, 0.9)', borderWidth: 1, borderColor: '#36515B' },
   signalIcon: { width: 42, height: 42, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: '#153942' },
   signalLabel: { color: '#7EF0D2', fontSize: 9, fontWeight: '800', letterSpacing: 1.8 },

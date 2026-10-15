@@ -1,7 +1,7 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { View } from 'react-native';
 import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
-import { usePreventRemove } from '@react-navigation/native';
+import { usePreventRemove } from 'expo-router/build/react-navigation/native';
 import { BowelRecord, useApp } from '@/context/AppContext';
 import { Screen, Card, Copy, Button, Chip, Field, DemoNotice, Confirm, ui, usePalette, formatDate, mealOptions, symptomOptions, toggleSymptom } from '@/components/consumer-ui';
 
@@ -30,7 +30,7 @@ function Result({ record }: { record: BowelRecord }) {
   const [leaving, setLeaving] = useState(false);
   const pendingAction = useRef<Parameters<typeof navigation.dispatch>[0] | null>(null);
   const dirty = editing && (note !== (record.note || '') || meal !== (record.mealTime || '未填寫') || caffeine !== record.hasCaffeine || JSON.stringify(symptoms) !== JSON.stringify(record.symptoms || []));
-  usePreventRemove(dirty, ({ data }) => { pendingAction.current = data.action; setDiscard(true); });
+  usePreventRemove(dirty, ({ data }: any) => { pendingAction.current = data.action; setDiscard(true); });
   useEffect(() => {
     if (leaving && !dirty) {
       const action = pendingAction.current; pendingAction.current = null; setLeaving(false);
@@ -39,13 +39,19 @@ function Result({ record }: { record: BowelRecord }) {
   }, [leaving, dirty, navigation]);
   const reset = () => { setNote(record.note || ''); setMeal(record.mealTime || '未填寫'); setSymptoms(record.symptoms || []); setCaffeine(record.hasCaffeine); setEditing(false); };
   return <Screen title="量測結果">
-    <DemoNotice />
     <Card>
+      <Copy title>腸音波形</Copy>
+      <Copy muted>模擬波形 · {record.duration} 秒，非實際收音</Copy>
+      <View accessibilityRole="image" accessibilityLabel="本次量測的模擬波形，非實際收音" style={{ height: 140, flexDirection: 'row', gap: 2, alignItems: 'center', overflow: 'hidden' }}>{record.aiResult.waveformMockData.map((value, i) => <View key={i} style={{ flex: 1, height: Math.max(2, Math.min(130, Math.abs(value) * 100)), backgroundColor: p.tint }} />)}</View>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}><Copy muted>0 秒</Copy><Copy muted>{record.duration} 秒</Copy></View>
+    </Card>
+    <Card>
+      <Copy title>分析結果（模擬）</Copy>
+      <Copy>範例分類：{record.aiResult.status === 'normal' ? '正常' : '異常'}</Copy>
+      <Copy muted>此分類為示範資料，不代表你的健康狀況。</Copy>
       <Copy title>{patients.find(person => person.id === record.patientId)?.name || '未知對象'}</Copy>
       <Copy>{formatDate(record.createdAt)} · 展示量測 {record.duration} 秒</Copy>
-      <Copy title>這是一筆模擬紀錄</Copy>
-      <Copy>本次沒有錄製腸音，沒有實際量測品質或健康結論。下方保留你填寫的狀態，方便回顧與修正。</Copy>
-      <Copy muted>下一步：確認填寫內容，或重新體驗一次量測。詳細圖表僅供展示。</Copy>
+      <Copy muted>尚未串接真實收音與分析。下方可補充這次的狀態與備註。</Copy>
     </Card>
     <Card>
       <Copy title>{editing ? '編輯這次紀錄' : '當時的狀態'}</Copy>
@@ -70,16 +76,16 @@ function Result({ record }: { record: BowelRecord }) {
       <Button label="再次量測" onPress={() => router.push({ pathname: '/record', params: { patientId: record.patientId } })} />
       <Button label={details ? '收合詳細數據' : '查看詳細數據（模擬）'} secondary onPress={() => setDetails(!details)} />
       {details && <Card>
-        <Copy title>模擬波形與頻譜</Copy>
+        <Copy title>模擬頻譜</Copy>
         <Copy muted>以下為程式生成的示意數值，非原始音訊或真實模型輸出。</Copy>
-        <View accessibilityLabel="模擬波形示意圖" style={{ height: 120, flexDirection: 'row', gap: 2, alignItems: 'center' }}>{record.aiResult.waveformMockData.map((value, i) => <View key={i} style={{ flex: 1, height: Math.max(3, Math.abs(value) * 100), backgroundColor: p.tint }} />)}</View>
-        <View accessibilityLabel="模擬頻譜示意圖" style={{ gap: 2 }}>{record.aiResult.spectrogramMockData.map((row, i) => <View key={i} style={{ flexDirection: 'row', gap: 2 }}>{row.map((value, j) => <View key={j} style={{ flex: 1, height: 16, backgroundColor: 'hsl(' + (240 - value / 255 * 240) + ',65%,50%)' }} />)}</View>)}</View>
+        <View accessibilityLabel="模擬頻譜示意圖" style={{ gap: 2 }}>{record.aiResult.spectrogramMockData.map((row, i) => <View key={i} style={{ flexDirection: 'row', gap: 2 }}>{row.map((value, j) => <View key={j} style={{ flex: 1, height: 16, backgroundColor: 'hsl(0,0%,' + (20 + value / 255 * 65) + '%)' }} />)}</View>)}</View>
         <Copy>範例頻率：{record.aiResult.frequency} 次／分</Copy>
         <Copy>範例分類：{record.aiResult.status === 'normal' ? '正常' : '異常'}（不代表健康狀況）</Copy>
         <Copy>模擬信心數值：{(record.aiResult.confidence * 100).toFixed(1)}%（不是準確率）</Copy>
       </Card>}
       <Button label="刪除這筆紀錄" secondary onPress={() => setRemove(true)} />
     </>}
+    <DemoNotice />
     <Confirm visible={remove} title="刪除這筆紀錄？" message={formatDate(record.createdAt) + ' 的紀錄將永久移除，無法復原。'} confirmLabel="確認刪除" onCancel={() => setRemove(false)} onConfirm={() => { deleteRecord(record.id); router.replace('/(tabs)/explore'); }} />
     <Confirm visible={discard} title="捨棄未儲存的修改？" message="原本的紀錄會保留，這次尚未儲存的修改會被捨棄。" confirmLabel="捨棄修改" onCancel={() => { pendingAction.current = null; setDiscard(false); }} onConfirm={() => { reset(); setDiscard(false); if (pendingAction.current) setLeaving(true); }} />
   </Screen>;
