@@ -1,129 +1,89 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { AppState, Text, View } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { ActivityIndicator, AppState, View } from 'react-native';
 import { useLocalSearchParams, useRouter, useNavigation } from 'expo-router';
 import { usePreventRemove } from 'expo-router/build/react-navigation/native';
 import { useApp } from '@/context/AppContext';
-import { Screen, Card, Copy, Button, Chip, DemoNotice, Confirm, ui, usePalette, mealOptions, symptomOptions, toggleSymptom } from '@/components/consumer-ui';
-import { WaveformVisualizer } from '@/components/WaveformVisualizer';
+import { Screen, Card, Copy, Button, Chip, Confirm, ui, usePalette, mealOptions, symptomOptions, toggleSymptom } from '@/components/consumer-ui';
+import { MeasurementSession, MeasurementState } from '@/services/measurement';
+import { getMeasurementAdapter } from '@/services/measurement-adapter';
 
 export default function RecordScreen() {
   const router = useRouter();
   const navigation = useNavigation();
   const { patientId } = useLocalSearchParams<{ patientId?: string }>();
-  const { patients, settings, ready, updateSettings, addRecord } = useApp();
+  const { patients, settings, addRecord } = useApp();
   const p = usePalette();
-  const [selected, setSelected] = useState(patientId || settings.primaryPatientId || '');
-  const duration = 20;
+  const [selection, setSelection] = useState<string>();
+  const selected = selection ?? patientId ?? settings.primaryPatientId ?? '';
   const [meal, setMeal] = useState('未填寫');
   const [symptoms, setSymptoms] = useState<string[]>([]);
-  const [caffeine, setCaffeine] = useState(false);
-  const [running, setRunning] = useState(false);
-  const [seconds, setSeconds] = useState(0);
+  const [caffeine, setCaffeine] = useState<boolean>();
+  const [state, setState] = useState<MeasurementState>({ phase: 'idle', message: '' });
   const [confirm, setConfirm] = useState(false);
-  const [cancelled, setCancelled] = useState('');
-  const [completedId, setCompletedId] = useState('');
-  const started = useRef(0);
-  const active = useRef(false);
-  const exitAction = useRef<Parameters<typeof navigation.dispatch>[0] | null>(null);
-  const [leaving, setLeaving] = useState(false);
-  const selectedPerson = patients.find(person => person.id === selected);
-
+  const [leave, setLeave] = useState(false);
+  const session = useRef<MeasurementSession | null>(null);
+  const mounted = useRef(true);
+  const action = useRef<Parameters<typeof navigation.dispatch>[0] | null>(null);
+  const busy = ['recording', 'uploading', 'analyzing'].includes(state.phase);
+  const adapter = getMeasurementAdapter(settings.apiUrl);
+  const person = patients.find(item => item.id === selected);
+  usePreventRemove(busy, ({ data }) => { action.current = data.action; setConfirm(true); });
   useEffect(() => {
-    if (completedId && !running) router.replace({ pathname: '/analytics', params: { recordId: completedId } });
-  }, [completedId, running, router]);
-
-  useEffect(() => {
-    if (ready) { setSelected(patientId || settings.primaryPatientId || ''); }
-  }, [ready, patientId, settings.primaryPatientId, settings.defaultDuration]);
-  usePreventRemove(running, ({ data }: any) => { exitAction.current = data.action; setConfirm(true); });
-  useEffect(() => {
-    if (leaving && !running) {
-      const action = exitAction.current;
-      exitAction.current = null;
-      setLeaving(false);
-      if (action) navigation.dispatch(action);
-    }
-  }, [leaving, running, navigation]);
-  const stop = useCallback(() => {
-    if (!active.current) return;
-    active.current = false;
-    setRunning(false);
-    const elapsed = Math.max(1, Math.floor((Date.now() - started.current) / 1000));
-    const finalDuration = duration > 0 ? Math.min(duration, elapsed) : elapsed;
-    setSeconds(finalDuration);
-    const record = addRecord(selected, finalDuration, caffeine, symptoms, meal, 35);
-    setCompletedId(record.id);
-    setConfirm(false);
-    exitAction.current = null;
-  }, [addRecord, selected, caffeine, symptoms, meal, duration]);
-  useEffect(() => {
-    if (!running) return;
-    const timer = setInterval(() => {
-      const elapsed = Math.floor((Date.now() - started.current) / 1000);
-      setSeconds(duration > 0 ? Math.min(duration, elapsed) : elapsed);
-      if (duration > 0 && elapsed >= duration) stop();
-    }, 200);
-    return () => clearInterval(timer);
-  }, [running, duration, stop]);
-  useEffect(() => {
-    const subscription = AppState.addEventListener('change', state => {
-      if (state !== 'active' && active.current) {
-        active.current = false; setRunning(false); setConfirm(false);
-        exitAction.current = null; setCancelled('APP 已離開前景，本次展示已取消，未新增紀錄。');
-      }
+    mounted.current = true;
+    const subscription = AppState.addEventListener('change', next => {
+      if (next !== 'active') session.current?.cancel();
     });
-    return () => subscription.remove();
+    return () => { mounted.current = false; session.current?.cancel(); subscription.remove(); };
   }, []);
-  const cancel = () => {
-    active.current = false; setRunning(false); setConfirm(false); setSeconds(0);
-    setCancelled('本次量測已取消，未新增紀錄。');
-    if (exitAction.current) setLeaving(true);
+  useEffect(() => {
+    if (leave && !busy && action.current) {
+      const next = action.current; action.current = null;
+      navigation.dispatch(next);
+    }
+  }, [leave, busy, navigation]);
+  useEffect(() => {
+    if (state.phase === 'completed' && state.result) router.replace({ pathname: '/analytics', params: { recordId: state.result.id } });
+  }, [state, router]);
+  const start = () => {
+    if (!person || !adapter.available || busy) return;
+    const input = { patientId: person.id, hasCaffeine: caffeine, symptoms, mealTime: meal };
+    // Identity only: no random clinical data is generated.
+    const requestId = 'measurement-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2);
+    const nextSession = new MeasurementSession(adapter, input, requestId, next => {
+      if (!mounted.current || session.current !== nextSession) return;
+      if (next.phase === 'completed' && next.result) addRecord(next.result, input);
+      setState(next);
+    });
+    session.current = nextSession;
+    void nextSession.run();
   };
-  const clock = (value: number) => String(Math.floor(value / 60)).padStart(2, '0') + ':' + String(value % 60).padStart(2, '0');
+  const reset = () => { session.current?.cancel(); session.current = null; setState({ phase: 'idle', message: '' }); };
   return <Screen title="開始量測">
-    <DemoNotice />
-    {!!cancelled && <Copy>{cancelled}</Copy>}
-    {completedId ? <Card>
-      <Copy title>展示量測已完成</Copy><Copy>已新增 {selectedPerson?.name} 的 {seconds} 秒模擬紀錄。沒有錄製音訊或執行真實 AI 分析。</Copy>
-      <Button label="查看這次紀錄" onPress={() => router.replace({ pathname: '/analytics', params: { recordId: completedId } })} />
-      <Button label="返回首頁" secondary onPress={() => router.replace('/')} />
-    </Card> : running ? <Card>
-      <Copy title>{selectedPerson?.name} · 展示進行中</Copy>
-      <Copy muted>動畫僅為示意，並未接收感測器訊號。</Copy>
-      <WaveformVisualizer isRecording />
-      <Text style={{ color: p.text, fontSize: 48, fontWeight: '700', textAlign: 'center' }}>{clock(seconds)}</Text>
-      <Copy>{duration ? '剩餘 ' + clock(Math.max(0, duration - seconds)) + '，完成後自動儲存展示紀錄。' : '不限時，按「結束並儲存」完成。'}</Copy>
-      {duration > 0 && <View accessibilityRole="progressbar" accessibilityValue={{ min: 0, max: duration, now: seconds }} style={{ backgroundColor: p.line, height: 10, borderRadius: 5, overflow: 'hidden' }}>
-        <View style={{ width: Math.min(100, seconds / duration * 100) + '%' as `${number}%`, height: 10, backgroundColor: p.tint }} />
-      </View>}
-      <Button label="結束並儲存" onPress={stop} />
-      <Button label="取消本次量測" secondary onPress={() => setConfirm(true)} />
+    {state.phase !== 'idle' ? <Card>
+      <Copy title>{{ recording: '收音中', uploading: '上傳中', analyzing: '分析中', completed: '分析完成', insufficient_audio: '收音品質不足', analysis_failed: '分析失敗', failed: '處理未完成', cancelled: '已停止' }[state.phase]}</Copy>
+      <Copy>{state.message}</Copy>
+      {busy && <ActivityIndicator color={p.tint} accessibilityLabel={state.message} />}
+      {state.phase === 'recording' && <Copy>{Math.floor(state.seconds || 0)} / 20 秒</Copy>}
+      {state.phase === 'failed' && <><Button label="重試" onPress={() => { void session.current?.run(); }} /><Copy muted>會沿用本次音訊或查詢原分析工作。離開此頁後無法保留重試進度。</Copy></>}
+      {busy ? <Button label="停止本次操作" secondary onPress={() => setConfirm(true)} />
+        : state.phase !== 'completed' && <Button label="重新量測" secondary onPress={reset} />}
     </Card> : <>
-      <Card>
-        <Copy title>這次為誰量測？</Copy>
-        <View style={ui.row}>{patients.map(person => <Chip key={person.id} label={person.name + (person.id === settings.primaryPatientId ? '（本人）' : '')} selected={selected === person.id} onPress={() => setSelected(person.id)} />)}</View>
-        {!selectedPerson && <Copy>請選擇對象，或新增個人資料後繼續。</Copy>}
-        <Button label="新增資料並繼續" secondary onPress={() => router.push({ pathname: '/patients', params: { create: '1', next: 'record' } })} />
+      <Card><Copy title>量測對象</Copy>
+        <View style={ui.row}>{patients.map(item => <Chip key={item.id} label={item.name} selected={selected === item.id} onPress={() => setSelection(item.id)} />)}</View>
+        {!person && <Copy>請先新增或選擇量測對象。</Copy>}
+        <Button label="新增本人或家人" secondary onPress={() => router.push({ pathname: '/patients', params: { create: '1', next: 'record' } })} />
       </Card>
-      <Card><Copy title>準備好了嗎？</Copy>
-        <Copy>展示裝置：{settings.hardwareConnected ? '已啟用（模擬連線）' : '尚未啟用'}</Copy>
-        <Copy muted>展示模式不會讀取麥克風，也不會實測環境音量。</Copy>
-        {!settings.hardwareConnected && <Button label="啟用展示裝置" secondary onPress={() => updateSettings({ hardwareConnected: true })} />}
-        <Button label="查看操作教學" secondary onPress={() => router.push('/guide')} />
-        <Copy>量測時間：20 秒，到時自動完成。</Copy>
+      <Card><Copy title>裝置與服務</Copy><Copy>{adapter.available ? '可開始量測' : '尚未完成串接'}</Copy>
+        <Copy muted>{adapter.available ? '每次收音最長 20 秒，完成後上傳分析。' : '目前尚未接收硬體音訊，無法開始量測。串接完成後才會顯示波形與結果。'}</Copy>
+        <Button label="連線設定" secondary onPress={() => router.push('/settings')} />
       </Card>
-      <Card>
-        <Copy title>記錄當下狀態</Copy><Copy muted>症狀與飯後時間可留空，會標記為「未填寫」。</Copy>
+      <Card><Copy title>記錄當下狀態</Copy>
         <Copy>飯後時間</Copy><View style={ui.row}>{mealOptions.map(value => <Chip key={value} label={value} selected={meal === value} onPress={() => setMeal(value)} />)}</View>
-        <Copy>這次量測前喝過咖啡或茶嗎？</Copy><View style={ui.row}><Chip label="沒有" selected={!caffeine} onPress={() => setCaffeine(false)} /><Chip label="有" selected={caffeine} onPress={() => setCaffeine(true)} /></View>
-        <Copy>目前症狀（可複選）</Copy><View style={ui.row}>{symptomOptions.map(value => <Chip key={value} label={value} selected={symptoms.includes(value)} onPress={() => setSymptoms(toggleSymptom(symptoms, value))} />)}</View>
+        <Copy>量測前喝過咖啡或茶？</Copy><View style={ui.row}>{[{ label: '未填寫', value: undefined }, { label: '沒有', value: false }, { label: '有', value: true }].map(item => <Chip key={item.label} label={item.label} selected={caffeine === item.value} onPress={() => setCaffeine(item.value)} />)}</View>
+        <Copy>症狀（可留空）</Copy><View style={ui.row}>{symptomOptions.map(value => <Chip key={value} label={value} selected={symptoms.includes(value)} onPress={() => setSymptoms(toggleSymptom(symptoms, value))} />)}</View>
       </Card>
-      <Button label="開始展示量測" disabled={!selectedPerson || !settings.hardwareConnected} onPress={() => {
-        if (active.current) return;
-        active.current = true; started.current = Date.now(); setSeconds(0); setCancelled(''); setRunning(true);
-      }} />
-      {(!selectedPerson || !settings.hardwareConnected) && <Copy muted>請先選擇量測對象並啟用展示裝置。</Copy>}
+      <Button label="開始量測" disabled={!person || !adapter.available} onPress={start} />
     </>}
-    <Confirm visible={confirm} title="取消這次量測？" message="本次進度不會儲存。選擇「先保留」可繼續量測；達到設定時長仍會自動完成。" confirmLabel="取消並捨棄" onConfirm={cancel} onCancel={() => { exitAction.current = null; setConfirm(false); }} />
+    <Confirm visible={confirm} title="停止本次操作？" message="會停止收音或等待結果。已上傳的資料可能仍在伺服器處理，停止等待不會刪除伺服器資料。" confirmLabel="停止操作" onCancel={() => { setConfirm(false); action.current = null; }} onConfirm={() => { setConfirm(false); session.current?.cancel(); if (action.current) setLeave(true); }} />
   </Screen>;
 }

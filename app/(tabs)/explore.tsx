@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useApp } from '@/context/AppContext';
-import { Screen, Card, Copy, Button, Chip, Field, DemoNotice, formatDate, ui } from '@/components/consumer-ui';
+import { Screen, Card, Copy, Button, Chip, Field, formatDate, ui } from '@/components/consumer-ui';
 import { filterRecords, isValidDateInput } from '@/services/record-utils';
 
 export default function RecordsScreen() {
@@ -15,7 +15,6 @@ export default function RecordsScreen() {
   const valid = period !== '自訂' || (isValidDateInput(start) && isValidDateInput(end) && (!start || !end || start <= end));
   const filtered = valid ? filterRecords(records, { patientId: person, period, start, end }) : [];
   return <Screen title="紀錄" back={false}>
-    <DemoNotice />
     <Card>
       <Copy title>找到你要的紀錄</Copy>
       <Copy>對象</Copy>
@@ -37,7 +36,7 @@ export default function RecordsScreen() {
     {filtered.map(record => <Card key={record.id}>
       <Copy title>{patients.find(p => p.id === record.patientId)?.name || '已移除的對象'}</Copy>
       <Copy>{formatDate(record.createdAt)} · {record.duration} 秒</Copy>
-      <Copy muted>模擬紀錄 · {record.symptoms?.join('、') || '症狀未填寫'}</Copy>
+      <Copy muted>{record.symptoms?.join('、') || '症狀未填寫'}</Copy>
       {!!record.note && <Copy>{record.note}</Copy>}
       <Button label="查看或編輯紀錄" secondary onPress={() => router.push({ pathname: '/analytics', params: { recordId: record.id } })} />
     </Card>)}

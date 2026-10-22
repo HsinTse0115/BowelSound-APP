@@ -5,7 +5,7 @@ import { useRouter } from 'expo-router';
 import { useApp } from '@/context/AppContext';
 import { useWellness } from '@/context/WellnessContext';
 import { dateKey } from '@/services/wellness';
-import { Screen, Card, Copy, Button, DemoNotice, formatDate, usePalette } from '@/components/consumer-ui';
+import { Screen, Card, Copy, Button, formatDate, usePalette } from '@/components/consumer-ui';
 import { SectionLabel, Shortcut, useToday, WellnessGate, wellnessStyles as s } from '@/components/wellness-ui';
 
 export default function HomeScreen() {
@@ -39,7 +39,7 @@ export default function HomeScreen() {
         <Button label={entry ? '編輯今天的紀錄' : '新增今天的紀錄'} onPress={daily} />
       </View>
       <View style={s.shortcuts}>
-        <Shortcut title="量測腸音" subtitle="試用模擬量測" icon="pulse-outline" onPress={() => router.push('/record')} />
+        <Shortcut title="量測腸音" subtitle="每次最長 20 秒" icon="pulse-outline" onPress={() => router.push('/record')} />
         <Shortcut title="記錄排便" subtitle="填寫排便次數和身體狀況" icon="create-outline" onPress={daily} />
       </View>
       {!person && <Card><Copy title>設定個人資料</Copy><Copy muted>設定本人後，首頁只會顯示你的紀錄。</Copy><Button label="設定本人或新增資料" secondary onPress={() => router.push('/patients')} /></Card>}
@@ -48,9 +48,8 @@ export default function HomeScreen() {
         <Text style={{ color: p.muted, fontSize: 13 }}>{['日','一','二','三','四','五','六'][new Date(day + 'T12:00:00').getDay()]}</Text>
         <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: loggedDays.has(day) ? p.tint : p.soft, alignItems: 'center', justifyContent: 'center', borderWidth: day === today ? 1 : 0, borderColor: p.tint }}><Text style={{ color: loggedDays.has(day) ? p.bg : p.text, fontSize: 14 }}>{loggedDays.has(day) ? '✓' : Number(day.slice(-2))}</Text></View>
       </View>)}</View><Copy muted>近 7 天有 {days.filter(day => loggedDays.has(day)).length} 天有紀錄。點選日曆可查看或補填。</Copy><Button label="查看日曆" secondary onPress={() => router.push('/(tabs)/calendar')} /></Card>
-      {latest && <Card><Copy title>最近一次腸音紀錄</Copy><Copy muted>{formatDate(latest.createdAt)} · {latest.duration} 秒 · 模擬數據</Copy><Button label="查看量測紀錄" secondary onPress={() => router.push({ pathname: '/analytics', params: { recordId: latest.id } })} /></Card>}
+      {latest && <Card><Copy title>最近一次腸音紀錄</Copy><Copy muted>{formatDate(latest.createdAt)} · {latest.duration} 秒</Copy><Button label="查看量測紀錄" secondary onPress={() => router.push({ pathname: '/analytics', params: { recordId: latest.id } })} /></Card>}
     </WellnessGate>
     {!settings.onboardingCompleted && <Button label="第一次使用？看看操作教學" secondary onPress={() => router.push('/guide')} />}
-    <DemoNotice />
   </Screen>;
 }

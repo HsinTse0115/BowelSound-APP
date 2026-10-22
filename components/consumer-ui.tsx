@@ -37,12 +37,6 @@ export function Field(props: TextInputProps) {
   const p = usePalette();
   return <TextInput {...props} placeholderTextColor={p.muted} style={[ui.input, { color: p.text, backgroundColor: p.card, borderColor: p.line }, props.style]} />;
 }
-export function DemoNotice() {
-  const p = usePalette();
-  return <View style={[ui.notice, { backgroundColor: p.soft }]}><Text style={{ color: p.tint, fontSize: 14, lineHeight: 22 }}>
-    展示模式 · 未使用真實感測器或麥克風。波形與分析為模擬資料，不代表你的健康狀況。
-  </Text></View>;
-}
 export function Screen({ children, title, back = true, onBack }: PropsWithChildren<{ title: string; back?: boolean; onBack?: () => void }>) {
   const p = usePalette();
   const router = useRouter();

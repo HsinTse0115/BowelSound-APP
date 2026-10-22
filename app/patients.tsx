@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useApp } from '@/context/AppContext';
-import { Screen, Card, Copy, Button, Chip, Field, DemoNotice, ui } from '@/components/consumer-ui';
+import { Screen, Card, Copy, Button, Chip, Field, ui } from '@/components/consumer-ui';
 
 export default function PeopleScreen() {
   const router = useRouter();
@@ -26,8 +26,7 @@ export default function PeopleScreen() {
     if (params.next === 'record') router.replace({ pathname: '/record', params: { patientId: person.id } });
   };
   return <Screen title="本人與家人">
-    <DemoNotice />
-    <Copy muted>選擇「設為本人」後，下次量測會自動帶入這個對象。預載姓名與舊紀錄是展示範例。</Copy>
+    <Copy muted>選擇「設為本人」後，下次量測會自動帶入這個對象。資料目前保存在這台裝置。</Copy>
     {!!saved && <Copy>{saved}</Copy>}
     {creating ? <Card>
       <Copy title>新增個人資料</Copy>

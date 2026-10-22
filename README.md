@@ -1,3 +1,5 @@
+> 2026-10-22：已移除預載示範資料與隨機分析。硬體/API 尚未實作，開始量測會停用。串接介面、等待/重試規則與舊資料保留方式請見 [量測交接文件](docs/MEASUREMENT_HANDOFF.md)。下方較早版本的展示說明僅供歷史參考。
+
 # BowelSound
 
 一般使用者版展示 APP（Expo / React Native）。

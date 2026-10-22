@@ -67,7 +67,7 @@ function CalendarView({ initialPerson, initialDate }: { initialPerson: string; i
         </Card>
         <Copy title>腸音紀錄</Copy>
         {!measurements.length && <Copy muted>這天沒有腸音紀錄。</Copy>}
-        {measurements.map(record => <Card key={record.id}><Copy>{formatDate(record.createdAt)} · {record.duration} 秒</Copy><Copy muted>模擬量測 · 示範資料</Copy><Button label="查看這次量測" secondary onPress={() => router.push({ pathname: '/analytics', params: { recordId: record.id } })} /></Card>)}
+        {measurements.map(record => <Card key={record.id}><Copy>{formatDate(record.createdAt)} · {record.duration} 秒</Copy><Button label="查看這次量測" secondary onPress={() => router.push({ pathname: '/analytics', params: { recordId: record.id } })} /></Card>)}
       </>}
     </WellnessGate>
     <Button label="查看所有量測紀錄" secondary onPress={() => router.push('/(tabs)/explore')} />
