@@ -9,7 +9,7 @@
     "ios": "expo start --ios",
     "web": "expo start --web",
     "lint": "expo lint",
-    "test": "node tests/record-utils.cjs && node tests/wellness.cjs"
+    "test": "node tests/record-utils.cjs && node tests/wellness.cjs && node tests/bowel-reminder.cjs"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",

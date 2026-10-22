@@ -22,7 +22,7 @@ export default function HomeScreen() {
   mine.forEach(record => loggedDays.add(dateKey(new Date(record.createdAt))));
   const days = Array.from({ length: 7 }, (_, i) => { const d = new Date(today + 'T12:00:00'); d.setDate(d.getDate() - 6 + i); return dateKey(d); });
   const daily = () => person ? router.push({ pathname: '/daily', params: { patientId: person.id, date: today } }) : router.push({ pathname: '/patients', params: { create: '1' } });
-  return <Screen title="腸聽你說（LOGO 預留）" back={false}>
+  return <Screen title="腸聽你說" back={false}>
     <BowelReminder />
     <WellnessGate>
       <View style={[s.hero, { backgroundColor: p.soft }]}>

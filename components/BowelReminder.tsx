@@ -37,13 +37,21 @@ export function BowelReminder() {
     void AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(next)).catch(() => {});
   };
   const visible = !!(person && end && seen && seen[person.id] !== today && (pathname === '/' || pathname === '/(tabs)'));
+  // A hidden Modal can still have its children evaluated. Do not build reminder
+  // actions until the profile and reminder data are available.
+  if (!person || !end || !visible) return null;
+
+  const openRecords = () => {
+    dismiss();
+    router.push({ pathname: '/(tabs)/calendar', params: { patientId: person.id, date: end } });
+  };
   return <Modal visible={visible} transparent animationType="fade" onRequestClose={dismiss}>
     <View style={ui.overlay}><View accessibilityViewIsModal style={[ui.dialog, { backgroundColor: p.card, maxHeight: '90%' }]}>
       <ScrollView contentContainerStyle={{ gap: 18 }}>
         <Copy title>排便狀況提醒</Copy>
         <Copy>{person?.name}，截至 {end}，你已連續 3 天記錄「沒有排便」。排便狀況可能需要留意，建議諮詢醫療人員。</Copy>
         <Copy muted>提醒依你填寫的紀錄產生，不是診斷。若有持續腹痛、嘔吐、血便或無法排氣，請儘速就醫，不必等滿 3 天。</Copy>
-        <Button label="查看或修正紀錄" onPress={() => { dismiss(); router.push({ pathname: '/(tabs)/calendar', params: { patientId: person!.id, date: end! } }); }} />
+        <Button label="查看或修正紀錄" onPress={openRecords} />
         <Button label="知道了，今天不再提醒" secondary onPress={dismiss} />
       </ScrollView>
     </View></View>
