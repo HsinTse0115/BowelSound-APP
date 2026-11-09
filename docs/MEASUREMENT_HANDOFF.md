@@ -27,7 +27,18 @@
 | failed | 伺服器已結束但未成功；顯示分析失敗，重新量測 |
 
 result：`id, patientId, duration, createdAt, aiResult`。
-aiResult：`status: normal|abnormal`, `frequency: number|null`, `confidence: number|null`, `notes: string`, `waveform: number[]`, `spectrogram: number[][]`。
+aiResult：`status: normal|hyperactive|hypoactive|not_detected`, `frequency: number|null`, `confidence: number|null`, `notes: string`, `waveform: number[]`, `spectrogram: number[][]`。
+
+| status | 顯示文字 |
+|---|---|
+| normal | 正常腸音 |
+| hyperactive | 腸音亢進 |
+| hypoactive | 腸音減弱 |
+| not_detected | 本次未偵測到腸音 |
+
+`not_detected` 僅描述本次有效收音期間的偵測結果，不代表臨床腸音消失或腸道無蠕動。收音品質不足、分析失敗、尚未分析須維持獨立狀態，不可轉成此值。模型須支援四分類並由後端回傳；前端不以頻率自行推論。新分析不接受舊的 `abnormal`，也不猜測其對應四類中的哪一類。
+
+本次只恢復四分類契約及結果標籤，保留遠端新增的人員、日誌、量測紀錄 API 操作與未分析畫面。歷史紀錄的 `fromBackendRecord` 目前仍未載入 `aiResult`，後續須依後端正式結果介面串接，才能在重新載入的歷史紀錄中顯示分析。
 無頻率或信心值必須用 null；無圖表用空陣列。波形為 [-1,1]，頻譜為 [0,255]。這是顯示格式，串接層負責將真實服務資料轉換為此格式。頻率單位為次／分，20 秒觀測如何估計由模型端決定。
 
 ## 等待與錯誤
@@ -52,3 +63,16 @@ aiResult：`status: normal|abnormal`, `frequency: number|null`, `confidence: num
 ## 驗證
 
 `npm test` 包含成功、未串接、重試去重鍵、工作續查、品質不足、分析失敗、錯誤格式、逾時、取消、遲到回應、重複開始；測試使用注入的測試 adapter，產品預設不會產生假資料。
+
+
+## 前端交接補充：連線、未填寫與離開確認
+
+- 所有現有 HTTP 呼叫集中在 services/api.ts。一般請求 10 秒、連線測試 5 秒、音檔上傳測試 30 秒；JSON 回應讀取也受逾時限制。HTTP 錯誤顯示一般使用者提示，不直接顯示 SQL、堆疊或伺服器 detail。
+- 寫入逾時或斷線不代表伺服器沒有成功，前端不自動重送；提示重新載入確認。後端仍應實作量測 requestId 冪等處理。
+- 儲存 API 網址（含同一網址再次儲存）或 reloadData()，會重新載入 GET /api/patients、GET /api/records、GET /api/daily。前端清除舊連線資料、取消舊讀取，忽略舊連線的延遲寫入回應；不能撤銷已被舊伺服器接受的寫入。
+- 連線網址直接取自 AppContext，日誌不再另外讀取 AsyncStorage 的舊設定；沒有設定時不會偷偷連到 127.0.0.1。手機請使用電腦可連線的區網 IP 或正式服務網址。
+- **後端必須支援 nullable has_caffeine**：JSON PATCH 的 null = 未填寫、false = 沒有、true = 有。GET /api/records 也須回傳同樣語意，資料庫欄位不得以 false 取代 null。前端可讀取舊資料缺少欄位為未填寫，但不會還原已經被舊後端寫成 false 的歷史語意。
+- 音檔上傳測試的 multipart has_caffeine 明確送字串 null / false / true；後端請解析這三值（null 不是一般布林值），不得把 null 預設為 false。尚未配合的後端可能回覆 422，前端會保留輸入並顯示失敗。
+- symptoms: [] = 未填寫、['無症狀'] = 明確沒有症狀；bowel: '未填寫' 與 '今天沒有' 不同。三天排便提醒仍只計入明確填寫沒有排便的日子。
+- 量測紀錄、每日紀錄與個人資料表單使用離開確認；取消編輯／切換個人編輯表單亦會提示。儲存中暫停離開及更改欄位；儲存失敗保留內容。網頁重新整理／關閉另由瀏覽器標準提示處理。
+- 硬體與正式分析 adapter 仍由後端／硬體團隊串接；本次沒有產生模擬分析結果。

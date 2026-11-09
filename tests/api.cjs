@@ -1,0 +1,38 @@
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const vm = require('node:vm');
+const ts = require('typescript');
+let fetchImpl;
+const context = { exports: {}, URL, Error, AbortController, setTimeout, clearTimeout,
+  fetch: (...args) => fetchImpl(...args) };
+vm.runInNewContext(ts.transpileModule(fs.readFileSync('services/api.ts', 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS } }).outputText, context);
+const { apiJson, apiRequest, normalizeApiUrl } = context.exports;
+(async () => {
+  assert.equal(normalizeApiUrl(' 192.168.1.10:8000/ '), 'http://192.168.1.10:8000');
+  for (const url of ['', 'ftp://server', 'https://user:pass@server', 'https://server?q=x']) assert.throws(() => normalizeApiUrl(url));
+  let calls = 0;
+  fetchImpl = async () => { calls++; return { ok: true, json: async () => ({ ok: true }) }; };
+  assert.equal((await apiJson('http://server', '/api/daily')).ok, true);
+  fetchImpl = async () => ({ ok: false, status: 500, json: async () => ({ detail: 'secret SQL traceback' }) });
+  await assert.rejects(apiJson('http://server', '/api/daily'), e => e.status === 500 && !e.message.includes('SQL'));
+  fetchImpl = async () => ({ ok: false, status: 409 });
+  await assert.rejects(apiRequest('http://server', '/api/patients/a'), e => e.status === 409);
+  fetchImpl = async () => ({ ok: true, json: async () => { throw new SyntaxError('html'); } });
+  await assert.rejects(apiJson('http://server', '/api/daily'), /資料格式/);
+  fetchImpl = async () => ({ ok: true, json: () => new Promise(() => {}) });
+  await assert.rejects(apiJson('http://server', '/api/daily', {}, 15), /連線逾時/);
+  calls = 0;
+  fetchImpl = async () => { calls++; return new Promise(() => {}); };
+  await assert.rejects(apiJson('http://server', '/api/daily', { method: 'PUT' }, 15), /尚未確認是否儲存成功/);
+  assert.equal(calls, 1, 'Writes must not retry automatically');
+  const controller = new AbortController();
+  const pending = apiJson('http://server', '/api/daily', { signal: controller.signal });
+  controller.abort();
+  await assert.rejects(pending, e => e.name === 'AbortError' && !e.message.includes('逾時'));
+  const before = calls;
+  await assert.rejects(apiJson('http://server', '/api/daily', { signal: controller.signal }), e => e.name === 'AbortError');
+  assert.equal(calls, before, 'A pre-cancelled request must not reach fetch');
+  fetchImpl = async () => { throw new TypeError('Failed to fetch'); };
+  await assert.rejects(apiJson('http://server', '/api/daily'), /無法連線/);
+  console.log('API tests passed: URL validation, safe HTTP errors, invalid JSON, body timeout, network failure, cancellation and no write retries.');
+})().catch(error => { console.error(error); process.exitCode = 1; });

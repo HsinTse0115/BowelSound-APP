@@ -1,7 +1,7 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useState } from 'react';
 import { View } from 'react-native';
-import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
-import { usePreventRemove } from 'expo-router/build/react-navigation/native';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useUnsavedChanges } from '@/hooks/use-unsaved-changes';
 import { useApp } from '@/context/AppContext';
 import { useWellness } from '@/context/WellnessContext';
 import { BOWEL_OPTIONS, FEELING_OPTIONS, DailyEntry, validDay } from '@/services/wellness';
@@ -24,21 +24,16 @@ export default function DailyScreen() {
 function DailyForm({ patientId, name, date, entry }: { patientId: string; name: string; date: string; entry?: DailyEntry }) {
   const { save, busy } = useWellness();
   const router = useRouter();
-  const navigation = useNavigation();
   const [bowel, setBowel] = useState(entry?.bowel || '未填寫');
   const [feeling, setFeeling] = useState(entry?.feeling || '未填寫');
   const [note, setNote] = useState(entry?.note || '');
   const [message, setMessage] = useState('');
-  const [confirm, setConfirm] = useState(false);
-  const [leaving, setLeaving] = useState(false);
-  const action = useRef<Parameters<typeof navigation.dispatch>[0] | null>(null);
-  const dirty = !leaving && (bowel !== (entry?.bowel || '未填寫') || feeling !== (entry?.feeling || '未填寫') || note !== (entry?.note || ''));
-  usePreventRemove(dirty || busy, ({ data }: { data: { action: Parameters<typeof navigation.dispatch>[0] } }) => { if (!busy) { action.current = data.action; setConfirm(true); } });
-  useEffect(() => { if (leaving && action.current) { const next = action.current; action.current = null; navigation.dispatch(next); } }, [leaving, navigation]);
+  const dirty = bowel !== (entry?.bowel || '未填寫') || feeling !== (entry?.feeling || '未填寫') || note !== (entry?.note || '');
+  const guard = useUnsavedChanges(dirty, busy);
   const submit = async () => {
     setMessage('');
     try { await save(patientId, date, { bowel, feeling, note }); setNote(note.trim()); setMessage('紀錄已儲存。'); }
-    catch { setMessage('儲存失敗，輸入內容仍保留，請重試。'); }
+    catch (cause) { setMessage((cause instanceof Error ? cause.message : '儲存未完成。') + '輸入內容仍保留。'); }
   };
   return <>
     <Copy muted>{name} · {date}</Copy>
@@ -49,6 +44,6 @@ function DailyForm({ patientId, name, date, entry }: { patientId: string; name: 
     <Button label={busy ? '儲存中…' : '儲存紀錄'} disabled={busy} onPress={submit} />
     <Button label="返回日曆" secondary disabled={busy} onPress={() => router.replace({ pathname: '/(tabs)/calendar', params: { date, patientId } })} />
     <Copy muted>內容由你自行填寫，不是 AI 分析結果。如要清除當天的排便、身體狀況和備註，請選回「未填寫」、清空備註，再按儲存。</Copy>
-    <Confirm visible={confirm} title="還沒儲存，要離開嗎？" message="離開後，這次修改不會儲存，原本的紀錄仍會保留。" confirmLabel="不儲存，直接離開" onCancel={() => { action.current = null; setConfirm(false); }} onConfirm={() => { setConfirm(false); setLeaving(true); }} />
+    <Confirm visible={guard.visible} title="還沒儲存，要離開嗎？" message="離開後，這次修改不會儲存，原本的紀錄仍會保留。" confirmLabel="不儲存，直接離開" onCancel={guard.onCancel} onConfirm={guard.onConfirm} />
   </>;
 }

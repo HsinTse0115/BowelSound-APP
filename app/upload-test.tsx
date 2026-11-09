@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Platform, ScrollView, Text, TextInput, Pressable, View } from 'react-native';
+import { apiJson } from '@/services/api';
 import { useApp } from '@/context/AppContext';
 
 type UploadReply = {
@@ -13,12 +14,13 @@ export default function UploadTestScreen() {
   const { patients, settings } = useApp();
   const [patientId, setPatientId] = useState('');
   const [duration, setDuration] = useState('10');
+  const [caffeine, setCaffeine] = useState<boolean | undefined>();
   const [symptoms, setSymptoms] = useState('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
   const [result, setResult] = useState<UploadReply | null>(null);
-  const apiBase = (settings.apiUrl || 'http://127.0.0.1:8000').replace(/\/+$/, '');
+  const apiBase = settings.apiUrl;
 
   function pickAudio() {
     if (Platform.OS !== 'web') return;
@@ -49,23 +51,13 @@ export default function UploadTestScreen() {
     const form = new FormData();
     form.append('patient_id', patientId);
     form.append('duration', String(seconds));
-    form.append('has_caffeine', 'false');
+    form.append('has_caffeine', caffeine === undefined ? 'null' : String(caffeine));
     form.append('symptoms', JSON.stringify(symptoms.trim() ? [symptoms.trim()] : []));
     form.append('meal_time', '未填寫');
     form.append('audio', selectedFile, selectedFile.name);
     setBusy(true);
     try {
-      const response = await fetch(`${apiBase}/api/record/upload`, {
-        method: 'POST', body: form,
-        // Do not set Content-Type: the browser supplies the multipart boundary.
-      });
-      const payload: unknown = await response.json();
-      if (!response.ok) {
-        const detail = (payload && typeof payload === 'object' && 'detail' in payload)
-          ? JSON.stringify((payload as { detail: unknown }).detail) : `HTTP ${response.status}`;
-        throw new Error(detail);
-      }
-      const reply = payload as UploadReply;
+      const reply = await apiJson<UploadReply>(apiBase, '/api/record/upload', { method: 'POST', body: form }, 30000);
       if (!reply.record_id || !reply.audio_file_path) throw new Error('伺服器回傳資料格式不正確。');
       setResult(reply);
       setMessage('上傳成功！這只代表音檔及紀錄已儲存，尚未執行 AI 分析。');
@@ -96,6 +88,9 @@ export default function UploadTestScreen() {
       <Text style={{ fontWeight: '700' }}>3. 錄音長度（秒，1～20）</Text>
       <TextInput value={duration} onChangeText={setDuration} keyboardType="numeric" editable={!busy}
         style={{ borderWidth: 1, borderColor: '#aaa', padding: 10, borderRadius: 6 }} />
+      <Text>量測前喝過咖啡或茶</Text>
+      {([{ label: '未填寫', value: undefined }, { label: '沒有', value: false }, { label: '有', value: true }]).map(option =>
+        <View key={option.label}>{btn((caffeine === option.value ? '✓ ' : '') + option.label, () => setCaffeine(option.value), busy)}</View>)}
       <Text>症狀（可留空；測試用）</Text>
       <TextInput value={symptoms} onChangeText={setSymptoms} editable={!busy} placeholder="例如：腹痛"
         style={{ borderWidth: 1, borderColor: '#aaa', padding: 10, borderRadius: 6 }} />

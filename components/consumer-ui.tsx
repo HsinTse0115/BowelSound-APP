@@ -26,9 +26,9 @@ export function Button({ label, onPress, secondary = false, disabled = false, da
     <Text style={{ color: secondary ? p.tint : '#FFFFFF', fontSize: 16, fontWeight: '700', textAlign: 'center' }}>{label}</Text>
   </Pressable>;
 }
-export function Chip({ label, selected, onPress }: { label: string; selected: boolean; onPress: () => void }) {
+export function Chip({ label, selected, onPress, disabled = false }: { label: string; selected: boolean; onPress: () => void; disabled?: boolean }) {
   const p = usePalette();
-  return <Pressable onPress={onPress} accessibilityRole="button" aria-pressed={selected} accessibilityState={{ selected }}
+  return <Pressable disabled={disabled} onPress={onPress} accessibilityRole="button" aria-pressed={selected} accessibilityState={{ selected, disabled }}
     style={[ui.chip, { backgroundColor: selected ? '#303030' : p.card, borderColor: selected ? '#303030' : p.line }]}>
     <Text style={{ color: selected ? '#FFFFFF' : p.text, fontSize: 15 }}>{selected ? '✓ ' : ''}{label}</Text>
   </Pressable>;
