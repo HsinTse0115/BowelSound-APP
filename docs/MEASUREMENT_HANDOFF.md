@@ -27,7 +27,18 @@
 | failed | 伺服器已結束但未成功；顯示分析失敗，重新量測 |
 
 result：`id, patientId, duration, createdAt, aiResult`。
-aiResult：`status: normal|abnormal`, `frequency: number|null`, `confidence: number|null`, `notes: string`, `waveform: number[]`, `spectrogram: number[][]`。
+aiResult：`status: normal|hyperactive|hypoactive|not_detected`, `frequency: number|null`, `confidence: number|null`, `notes: string`, `waveform: number[]`, `spectrogram: number[][]`。
+
+2026-11-09：結果頁架構不變，分類改為四種腸音狀態：
+
+| status | 顯示文字 |
+|---|---|
+| normal | 正常腸音 |
+| hyperactive | 腸音亢進 |
+| hypoactive | 腸音減弱 |
+| not_detected | 本次未偵測到腸音 |
+
+`not_detected` 僅描述本次有效收音期間的偵測結果，不等於臨床腸音消失或腸道無蠕動；不可將收音不足、連線失敗或無法判讀轉成此值。模型須支援四分類並由後端回傳，前端不以頻率閾值自行推論。新分析不再接受 `abnormal`。本機舊紀錄若含 `abnormal`，維持原值並標示「舊版異常結果（未細分狀態）」，不猜測對應的新分類。
 無頻率或信心值必須用 null；無圖表用空陣列。波形為 [-1,1]，頻譜為 [0,255]。這是顯示格式，串接層負責將真實服務資料轉換為此格式。頻率單位為次／分，20 秒觀測如何估計由模型端決定。
 
 ## 等待與錯誤

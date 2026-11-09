@@ -55,7 +55,7 @@ export interface BowelRecord {
   /** 採集時間 (ISO 8601 格式字串) */
   createdAt: string;
   /** Validated backend result; never generated on device. */
-  aiResult: AnalysisResult;
+  aiResult: Omit<AnalysisResult, 'status'> & { status: AnalysisResult['status'] | 'abnormal' };
 }
 
 /**
@@ -143,7 +143,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         if (storedRecords) {
           const parsedRecords: BowelRecord[] = JSON.parse(storedRecords);
           if (Array.isArray(parsedRecords)) {
-            parsedRecords.forEach(record => validateResult(record,
+            // Keep legacy binary classifications as legacy; validate their other
+            // fields without guessing which new state the old "abnormal" means.
+            parsedRecords.forEach(record => validateResult({ ...record, aiResult: {
+              ...record.aiResult, status: record.aiResult.status === 'abnormal' ? 'normal' : record.aiResult.status,
+            } },
               { patientId: record.patientId, symptoms: [], mealTime: '未填寫' },
               { uri: 'stored', mimeType: 'stored', duration: record.duration }));
             setRecords(parsedRecords);

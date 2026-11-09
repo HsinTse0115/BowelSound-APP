@@ -1,4 +1,5 @@
 import { WaveformVisualizer } from '@/components/WaveformVisualizer';
+import { bowelSoundLabel } from '@/services/measurement';
 import React, { useRef, useState, useEffect } from 'react';
 import { View } from 'react-native';
 import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
@@ -47,7 +48,8 @@ function Result({ record }: { record: BowelRecord }) {
     </Card>
     <Card>
       <Copy title>分析結果</Copy>
-      <Copy>分類：{record.aiResult.status === 'normal' ? '正常' : '異常'}</Copy>
+      <Copy>腸音狀態：{bowelSoundLabel(record.aiResult.status)}</Copy>
+      {record.aiResult.status === 'not_detected' && <Copy muted>本次收音期間未偵測到腸音，不代表腸道沒有蠕動。</Copy>}
       {!!record.aiResult.notes && <Copy>{record.aiResult.notes}</Copy>}
       <Copy muted>此為系統分析結果，不等同醫療診斷。</Copy>
       <Copy title>{patients.find(person => person.id === record.patientId)?.name || '未知對象'}</Copy>
@@ -82,7 +84,7 @@ function Result({ record }: { record: BowelRecord }) {
         {!record.aiResult.spectrogram.length && <Copy muted>後端未提供頻譜資料。</Copy>}
         <View accessibilityLabel="頻譜圖" style={{ gap: 2 }}>{record.aiResult.spectrogram.map((row, i) => <View key={i} style={{ flexDirection: 'row', gap: 2 }}>{row.map((value, j) => <View key={j} style={{ flex: 1, height: 16, backgroundColor: 'hsl(0,0%,' + (20 + value / 255 * 65) + '%)' }} />)}</View>)}</View>
         <Copy>頻率：{record.aiResult.frequency ?? '未提供'} 次／分</Copy>
-        <Copy>分類：{record.aiResult.status === 'normal' ? '正常' : '異常'}</Copy>
+        <Copy>腸音狀態：{bowelSoundLabel(record.aiResult.status)}</Copy>
         <Copy>模型信心值：{record.aiResult.confidence === null ? '未提供' : (record.aiResult.confidence * 100).toFixed(1) + '%'}（不是準確率）</Copy>
       </Card>}
       <Button label="刪除這筆紀錄" secondary onPress={() => setRemove(true)} />
