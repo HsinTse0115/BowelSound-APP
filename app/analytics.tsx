@@ -1,95 +1,144 @@
-import { WaveformVisualizer } from '@/components/WaveformVisualizer';
-import { bowelSoundLabel } from '@/services/measurement';
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { View } from 'react-native';
-import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
-import { usePreventRemove } from 'expo-router/build/react-navigation/native';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { WaveformVisualizer } from '@/components/WaveformVisualizer';
 import { BowelRecord, useApp } from '@/context/AppContext';
-import { Screen, Card, Copy, Button, Chip, Field, Confirm, ui, formatDate, mealOptions, symptomOptions, toggleSymptom } from '@/components/consumer-ui';
+import { Screen, Card, Copy, Button, Chip, Confirm, ui, formatDate, mealOptions, symptomOptions, toggleSymptom } from '@/components/consumer-ui';
 
 export default function ResultsScreen() {
   const { recordId } = useLocalSearchParams<{ recordId?: string }>();
   const { records } = useApp();
   const router = useRouter();
-  const record = records.find(r => r.id === recordId);
-  if (!record) return <Screen title="量測結果"><Card><Copy title>{recordId ? '找不到這筆紀錄' : '先選擇一筆紀錄'}</Copy><Copy>前往紀錄頁，選擇想查看的日期與對象。</Copy><Button label="前往紀錄" onPress={() => router.replace('/(tabs)/explore')} /></Card></Screen>;
-  return <Result key={record.id} record={record} />;
+  const record = records.find(item => item.id === recordId);
+  if (!record) return <Screen title="量測結果"><Card>
+    <Copy title>{recordId ? '找不到這筆紀錄' : '先選擇一筆紀錄'}</Copy>
+    <Button label="返回歷史紀錄" onPress={() => router.replace('/(tabs)/explore')} />
+  </Card></Screen>;
+  return <RecordDetail key={record.id} record={record} />;
 }
-function Result({ record }: { record: BowelRecord }) {
+
+function RecordDetail({ record }: { record: BowelRecord }) {
   const { patients, updateRecord, deleteRecord } = useApp();
   const router = useRouter();
-  const navigation = useNavigation();
-  const [details, setDetails] = useState(false);
   const [editing, setEditing] = useState(false);
-  const [note, setNote] = useState(record.note || '');
   const [meal, setMeal] = useState(record.mealTime || '未填寫');
-  const [symptoms, setSymptoms] = useState(record.symptoms || []);
-  const [caffeine, setCaffeine] = useState(record.hasCaffeine);
+  const [symptoms, setSymptoms] = useState<string[]>(record.symptoms || []);
+  const [caffeine, setCaffeine] = useState<boolean | undefined>(record.hasCaffeine);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
   const [saved, setSaved] = useState(false);
-  const [remove, setRemove] = useState(false);
-  const [discard, setDiscard] = useState(false);
-  const [leaving, setLeaving] = useState(false);
-  const pendingAction = useRef<Parameters<typeof navigation.dispatch>[0] | null>(null);
-  const dirty = editing && (note !== (record.note || '') || meal !== (record.mealTime || '未填寫') || caffeine !== record.hasCaffeine || JSON.stringify(symptoms) !== JSON.stringify(record.symptoms || []));
-  usePreventRemove(dirty, ({ data }: any) => { pendingAction.current = data.action; setDiscard(true); });
-  useEffect(() => {
-    if (leaving && !dirty) {
-      const action = pendingAction.current; pendingAction.current = null; setLeaving(false);
-      if (action) navigation.dispatch(action);
+  const [details, setDetails] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
+  const reset = () => {
+    setMeal(record.mealTime || '未填寫');
+    setSymptoms(record.symptoms || []);
+    setCaffeine(record.hasCaffeine);
+    setError('');
+    setEditing(false);
+  };
+  const save = async () => {
+    if (saving) return;
+    setSaving(true);
+    setError('');
+    try {
+      await updateRecord(record.id, { mealTime: meal, symptoms, hasCaffeine: caffeine });
+      setEditing(false);
+      setSaved(true);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : '儲存失敗，請稍後再試');
+    } finally {
+      setSaving(false);
     }
-  }, [leaving, dirty, navigation]);
-  const reset = () => { setNote(record.note || ''); setMeal(record.mealTime || '未填寫'); setSymptoms(record.symptoms || []); setCaffeine(record.hasCaffeine); setEditing(false); };
-  return <Screen title="量測結果">
+  };
+
+  const remove = async () => {
+    if (deleting) return;
+    setDeleting(true);
+    setDeleteError('');
+    try {
+      const result = await deleteRecord(record.id);
+      setConfirmDelete(false);
+      if (!result.audioDeleted) {
+        // 紀錄已刪除，但音檔未能確認清理，讓使用者知道需要檢查伺服器。
+        setDeleteError('MySQL 紀錄已刪除，但音檔未確認刪除。請檢查後端 uploads 資料夾。');
+      } else {
+        router.replace('/(tabs)/explore');
+      }
+    } catch (e) {
+      setConfirmDelete(false);
+      setDeleteError(e instanceof Error ? e.message : '刪除失敗，請稍後再試');
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  return <Screen title="量測紀錄">
     <Card>
-      <Copy title>腸音波形</Copy>
-      <Copy muted>{record.duration} 秒</Copy>
-      <WaveformVisualizer samples={record.aiResult.waveform} />
-      {!!record.aiResult.waveform.length && <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}><Copy muted>0 秒</Copy><Copy muted>{record.duration} 秒</Copy></View>}
-    </Card>
-    <Card>
-      <Copy title>分析結果</Copy>
-      <Copy>腸音狀態：{bowelSoundLabel(record.aiResult.status)}</Copy>
-      {record.aiResult.status === 'not_detected' && <Copy muted>本次收音期間未偵測到腸音，不代表腸道沒有蠕動。</Copy>}
-      {!!record.aiResult.notes && <Copy>{record.aiResult.notes}</Copy>}
-      <Copy muted>此為系統分析結果，不等同醫療診斷。</Copy>
-      <Copy title>{patients.find(person => person.id === record.patientId)?.name || '未知對象'}</Copy>
-      <Copy>{formatDate(record.createdAt)} · 量測 {record.duration} 秒</Copy>
-      <Copy muted>下方可補充這次的狀態與備註。</Copy>
-    </Card>
-    <Card>
-      <Copy title>{editing ? '編輯這次紀錄' : '當時的狀態'}</Copy>
-      {saved && !editing && <Copy>已更新紀錄。</Copy>}
-      {editing ? <>
-        <Copy>飯後時間</Copy><View style={ui.row}>{Array.from(new Set([...mealOptions, meal])).map(value => <Chip key={value} label={value} selected={meal === value} onPress={() => setMeal(value)} />)}</View>
-        <Copy>量測前喝過咖啡或茶</Copy><View style={ui.row}>{[{ label: '未填寫', value: undefined }, { label: '沒有', value: false }, { label: '有', value: true }].map(option => <Chip key={option.label} label={option.label} selected={caffeine === option.value} onPress={() => setCaffeine(option.value)} />)}</View>
-        <Copy>症狀（未選擇代表未填寫）</Copy><View style={ui.row}>{symptomOptions.map(value => <Chip key={value} label={value} selected={symptoms.includes(value)} onPress={() => setSymptoms(toggleSymptom(symptoms, value))} />)}</View>
-        <Copy>備註（選填，最多 500 字）</Copy><Field accessibilityLabel="紀錄備註" value={note} onChangeText={setNote} multiline maxLength={500} placeholder="補充這次想記住的事情" style={{ minHeight: 110, textAlignVertical: 'top' }} />
-        <Copy muted>只修改填寫內容，分析數據與原始日期不會重新產生。</Copy>
-        <Button label="儲存修改" onPress={() => { updateRecord(record.id, { note: note.trim(), mealTime: meal, symptoms, hasCaffeine: caffeine }); setEditing(false); setSaved(true); }} />
-        <Button label="取消編輯" secondary onPress={() => dirty ? setDiscard(true) : reset()} />
-      </> : <>
-        <Copy>飯後時間：{record.mealTime || '未填寫'}</Copy>
-        <Copy>咖啡或茶：{record.hasCaffeine === undefined ? '未填寫' : record.hasCaffeine ? '有' : '沒有'}</Copy>
-        <Copy>症狀：{record.symptoms?.join('、') || '未填寫'}</Copy>
-        <Copy>備註：{record.note || '尚無備註'}</Copy>
-        <Button label="編輯狀態與備註" secondary onPress={() => { reset(); setSaved(false); setEditing(true); }} />
+      <Copy title>{record.aiResult ? '分析結果' : '已上傳，尚未分析'}</Copy>
+      {!record.aiResult && <Copy>音檔已儲存至伺服器，目前沒有 AI 分析結果。</Copy>}
+      <Copy>紀錄編號：{record.id}</Copy>
+      <Copy>量測對象：{patients.find(item => item.id === record.patientId)?.name || record.patientId}</Copy>
+      <Copy>量測時間：{formatDate(record.createdAt)}</Copy>
+      <Copy>量測長度：{record.duration} 秒</Copy>
+      {record.aiResult && <>
+        <Copy>分類：{record.aiResult.status === 'normal' ? '正常' : '異常'}</Copy>
+        <Copy>{record.aiResult.notes}</Copy>
+        <Copy muted>分析結果不等同醫療診斷。</Copy>
       </>}
     </Card>
-    {!editing && <>
-      <Button label="再次量測" onPress={() => router.push({ pathname: '/record', params: { patientId: record.patientId } })} />
+    {record.aiResult && <Card>
+      <Copy title>腸音波形</Copy>
+      <WaveformVisualizer samples={record.aiResult.waveform} />
       <Button label={details ? '收合詳細數據' : '查看詳細數據'} secondary onPress={() => setDetails(!details)} />
-      {details && <Card>
-        <Copy title>頻譜</Copy>
-        <Copy muted>以下資料由分析服務提供。</Copy>
-        {!record.aiResult.spectrogram.length && <Copy muted>後端未提供頻譜資料。</Copy>}
-        <View accessibilityLabel="頻譜圖" style={{ gap: 2 }}>{record.aiResult.spectrogram.map((row, i) => <View key={i} style={{ flexDirection: 'row', gap: 2 }}>{row.map((value, j) => <View key={j} style={{ flex: 1, height: 16, backgroundColor: 'hsl(0,0%,' + (20 + value / 255 * 65) + '%)' }} />)}</View>)}</View>
+      {details && <>
         <Copy>頻率：{record.aiResult.frequency ?? '未提供'} 次／分</Copy>
-        <Copy>腸音狀態：{bowelSoundLabel(record.aiResult.status)}</Copy>
-        <Copy>模型信心值：{record.aiResult.confidence === null ? '未提供' : (record.aiResult.confidence * 100).toFixed(1) + '%'}（不是準確率）</Copy>
-      </Card>}
-      <Button label="刪除這筆紀錄" secondary onPress={() => setRemove(true)} />
+        <Copy>信心值：{record.aiResult.confidence === null ? '未提供' : (record.aiResult.confidence * 100).toFixed(1) + '%'}</Copy>
+        {!record.aiResult.spectrogram.length && <Copy muted>後端未提供頻譜資料。</Copy>}
+        <View accessibilityLabel="頻譜圖" style={{ gap: 2 }}>
+          {record.aiResult.spectrogram.map((row, i) => <View key={i} style={{ flexDirection: 'row', gap: 2 }}>
+            {row.map((value, j) => <View key={j} style={{ flex: 1, height: 16, backgroundColor: 'hsl(0,0%,' + (20 + value / 255 * 65) + '%)' }} />)}
+          </View>)}
+        </View>
+      </>}
+    </Card>}
+    <Card>
+      <Copy title>{editing ? '編輯這次紀錄' : '當時的狀態'}</Copy>
+      {saved && !editing && <Copy>已成功儲存至 MySQL。</Copy>}
+      {editing ? <>
+        <Copy>飯後時間</Copy>
+        <View style={ui.row}>{Array.from(new Set([...mealOptions, meal])).map(value =>
+          <Chip key={value} label={value} selected={meal === value} onPress={() => setMeal(value)} />)}</View>
+        <Copy>量測前喝過咖啡或茶</Copy>
+        <View style={ui.row}>{[{ label: '沒有', value: false }, { label: '有', value: true }].map(option =>
+          <Chip key={option.label} label={option.label} selected={caffeine === option.value} onPress={() => setCaffeine(option.value)} />)}</View>
+        <Copy>症狀（可留空）</Copy>
+        <View style={ui.row}>{symptomOptions.map(value =>
+          <Chip key={value} label={value} selected={symptoms.includes(value)} onPress={() => setSymptoms(toggleSymptom(symptoms, value))} />)}</View>
+        {!!error && <Copy>{error}</Copy>}
+        <Button label={saving ? '儲存中…' : '儲存修改'} disabled={saving} onPress={() => { void save(); }} />
+        <Button label="取消編輯" secondary disabled={saving} onPress={reset} />
+      </> : <>
+        <Copy>飯後時間：{record.mealTime || '未填寫'}</Copy>
+        <Copy>咖啡或茶：{record.hasCaffeine ? '有' : '沒有'}</Copy>
+        <Copy>症狀：{record.symptoms?.join('、') || '未填寫'}</Copy>
+        <Button label="編輯紀錄" onPress={() => { setSaved(false); setEditing(true); }} />
+      </>}
+      <Copy muted>目前可修改症狀、飯後時間與咖啡因狀態；備註尚未串接。</Copy>
+    </Card>
+    {!editing && <>
+      {!!deleteError && <Card><Copy>{deleteError}</Copy><Button label="返回歷史紀錄" secondary onPress={() => router.replace('/(tabs)/explore')} /></Card>}
+      <Button label={deleting ? '刪除中…' : '刪除這筆紀錄'} secondary disabled={deleting} onPress={() => { setDeleteError(''); setConfirmDelete(true); }} />
+      <Button label="返回歷史紀錄" secondary disabled={deleting} onPress={() => router.replace('/(tabs)/explore')} />
     </>}
-    <Confirm visible={remove} title="刪除這筆紀錄？" message={formatDate(record.createdAt) + ' 的紀錄將永久移除，無法復原。'} confirmLabel="確認刪除" onCancel={() => setRemove(false)} onConfirm={() => { deleteRecord(record.id); router.replace('/(tabs)/explore'); }} />
-    <Confirm visible={discard} title="捨棄未儲存的修改？" message="原本的紀錄會保留，這次尚未儲存的修改會被捨棄。" confirmLabel="捨棄修改" onCancel={() => { pendingAction.current = null; setDiscard(false); }} onConfirm={() => { reset(); setDiscard(false); if (pendingAction.current) setLeaving(true); }} />
+    <Confirm
+      visible={confirmDelete}
+      title="確定刪除這筆量測紀錄？"
+      message={`紀錄 ${record.id} 將從 MySQL 永久刪除，伺服器也會嘗試移除原始音檔。此操作無法復原。`}
+      confirmLabel={deleting ? '刪除中…' : '確認刪除'}
+      onCancel={() => { if (!deleting) setConfirmDelete(false); }}
+      onConfirm={() => { void remove(); }}
+    />
   </Screen>;
 }

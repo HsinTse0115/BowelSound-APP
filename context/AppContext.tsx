@@ -1,6 +1,5 @@
 import React, { createContext, useContext, useState, useRef, ReactNode, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { editRecord, removeRecord } from '../services/record-utils';
 import { keepUserPatients } from '../services/legacy-data';
 import { validateResult } from '../services/measurement';
 import type { AnalysisResult, MeasurementResult, MeasurementInput } from '../services/measurement';
@@ -55,7 +54,7 @@ export interface BowelRecord {
   /** 採集時間 (ISO 8601 格式字串) */
   createdAt: string;
   /** Validated backend result; never generated on device. */
-  aiResult: Omit<AnalysisResult, 'status'> & { status: AnalysisResult['status'] | 'abnormal' };
+  aiResult?: AnalysisResult;
 }
 
 /**
@@ -78,8 +77,8 @@ export interface AppSettings {
 export interface AppContextType {
   ready: boolean;
   storageError: string | null;
-  updateRecord: (id: string, changes: Pick<BowelRecord, 'note' | 'symptoms' | 'mealTime' | 'hasCaffeine'>) => void;
-  deleteRecord: (id: string) => void;
+  updateRecord: (id: string, changes: Pick<BowelRecord, 'symptoms' | 'mealTime' | 'hasCaffeine'>) => Promise<void>;
+  deleteRecord: (id: string) => Promise<{ audioDeleted: boolean }>;
   /** 病患列表 */
   patients: Patient[];
   /** 腸音紀錄列表 */
@@ -87,12 +86,68 @@ export interface AppContextType {
   /** 系統設定 */
   settings: AppSettings;
   /** 新增病患 */
-  addPatient: (patient: Omit<Patient, 'id' | 'createdAt'>) => Patient;
+  addPatient: (patient: Omit<Patient, 'id' | 'createdAt'>) => Promise<Patient>;
+  /** 修改病患，成功後同步前端列表 */
+  updatePatient: (id: string, changes: Pick<Patient, 'name' | 'age' | 'gender'>) => Promise<Patient>;
+  /** 刪除沒有歷史紀錄的病患 */
+  deletePatient: (id: string) => Promise<void>;
   /** 新增腸音紀錄，並回傳新增的紀錄物件 */
   addRecord: (result: MeasurementResult, input: MeasurementInput) => BowelRecord;
   /** 更新系統設定 (支援局部更新) */
   updateSettings: (settings: Partial<AppSettings>) => void;
 }
+
+
+/** FastAPI 回傳的欄位名稱與前端不同，在此統一轉換。 */
+type BackendPatient = {
+  patient_id: string;
+  name: string;
+  age: number;
+  gender: 'M' | 'F';
+  bedNumber: string | null;
+  note: string | null;
+  created_at: string;
+};
+
+const fromBackendPatient = (item: BackendPatient): Patient => ({
+  id: item.patient_id,
+  name: item.name,
+  age: item.age,
+  gender: item.gender,
+  subjectType: 'participant',
+  bedNumber: item.bedNumber ?? undefined,
+  note: item.note ?? undefined,
+  createdAt: item.created_at,
+});
+
+// 本機網頁測試用。若使用手機 Expo Go，須改為電腦的區網 IP。
+const getPatientApiBaseUrl = (configured: string): string =>
+  (configured.trim() || 'http://127.0.0.1:8000').replace(/\/+$/, '');
+
+/** 後端歷史紀錄資料，尚未分析時不會有 aiResult。 */
+type BackendRecord = {
+  record_id: string;
+  patient_id: string;
+  duration: number;
+  has_caffeine: boolean;
+  symptoms: string[] | null;
+  meal_time: string | null;
+  decibel_level: number | null;
+  audio_file_path: string | null;
+  created_at: string;
+};
+
+const fromBackendRecord = (r: BackendRecord): BowelRecord => ({
+  id: r.record_id,
+  patientId: r.patient_id,
+  duration: r.duration,
+  hasCaffeine: r.has_caffeine,
+  symptoms: r.symptoms ?? [],
+  mealTime: r.meal_time ?? undefined,
+  decibelLevel: r.decibel_level ?? undefined,
+  createdAt: r.created_at,
+  // 尚未取得 AI 分析結果，不能虛構 normal / abnormal。
+});
 
 // 建立 React Context
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -113,8 +168,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     themeMode: 'light',
   });
 
-  // 紀錄下一個可用的 ID 序號，避免連續新增時產生重複 ID
-  const nextPatientIdRef = useRef<number>(1004);
   const hasHydratedRef = useRef(false);
 
   // 在 App 啟動時載入病患、紀錄、設定與個人資料
@@ -135,24 +188,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             if (kept.length !== parsedPatients.length && !(await AsyncStorage.getItem('@bowelsound_patients_before_live_v1'))) {
               await AsyncStorage.setItem('@bowelsound_patients_before_live_v1', storedPatients);
             }
-            setPatients(kept);
-            const maxId = Math.max(1003, ...parsedPatients.map(item => Number(item.id.replace('P-', '')) || 0));
-            nextPatientIdRef.current = maxId + 1;
+            // 舊病患資料保留於 AsyncStorage 作備份，不自動上傳以免產生重複紀錄。
+            void kept;
           }
         }
-        if (storedRecords) {
-          const parsedRecords: BowelRecord[] = JSON.parse(storedRecords);
-          if (Array.isArray(parsedRecords)) {
-            // Keep legacy binary classifications as legacy; validate their other
-            // fields without guessing which new state the old "abnormal" means.
-            parsedRecords.forEach(record => validateResult({ ...record, aiResult: {
-              ...record.aiResult, status: record.aiResult.status === 'abnormal' ? 'normal' : record.aiResult.status,
-            } },
-              { patientId: record.patientId, symptoms: [], mealTime: '未填寫' },
-              { uri: 'stored', mimeType: 'stored', duration: record.duration }));
-            setRecords(parsedRecords);
-          }
-        }
+        // 舊本機量測紀錄保留在 AsyncStorage 作備份；正式列表以 MySQL 為準。
         if (storedSettings) {
           const parsedSettings: Partial<AppSettings> & { hardwareConnected?: boolean } = JSON.parse(storedSettings);
           delete parsedSettings.hardwareConnected;
@@ -169,19 +209,52 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     hydrate();
   }, []);
 
+  // 病患以 MySQL 為唯一資料來源；不再把伺服器列表覆寫至舊本機備份。
   useEffect(() => {
-    if (!hasHydratedRef.current) return;
-    AsyncStorage.setItem(STORAGE_KEYS.patients, JSON.stringify(patients)).catch(error =>
-      { setStorageError('資料尚未成功寫入裝置，請勿關閉 APP。請確認裝置儲存空間。'); console.error('儲存個人資料失敗', error); }
-    );
-  }, [patients, ready]);
+    if (!ready) return;
+    let cancelled = false;
+    const loadPatients = async () => {
+      try {
+        const response = await fetch(`${getPatientApiBaseUrl(settings.apiUrl)}/api/patients`);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const data: BackendPatient[] = await response.json();
+        if (!Array.isArray(data)) throw new Error('病患 API 回傳格式錯誤');
+        if (!cancelled) {
+          setPatients(data.map(fromBackendPatient));
+          setStorageError(null);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setStorageError('無法從 FastAPI 取得病患資料，請確認後端與 MySQL 已啟動。');
+          console.error('載入遠端病患失敗', error);
+        }
+      }
+    };
+    void loadPatients();
+    return () => { cancelled = true; };
+  }, [ready, settings.apiUrl]);
 
+  // MySQL 是歷史紀錄唯一讀取來源，避免本機資料覆寫伺服器結果。
   useEffect(() => {
-    if (!hasHydratedRef.current) return;
-    AsyncStorage.setItem(STORAGE_KEYS.records, JSON.stringify(records)).catch(error =>
-      { setStorageError('紀錄尚未成功寫入裝置，請勿關閉 APP。請確認裝置儲存空間。'); console.error('儲存紀錄失敗', error); }
-    );
-  }, [records, ready]);
+    if (!ready) return;
+    let cancelled = false;
+    const loadRecords = async () => {
+      try {
+        const response = await fetch(`${getPatientApiBaseUrl(settings.apiUrl)}/api/records`);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const data: BackendRecord[] = await response.json();
+        if (!Array.isArray(data)) throw new Error('歷史紀錄 API 格式錯誤');
+        if (!cancelled) setRecords(data.map(fromBackendRecord));
+      } catch (error) {
+        if (!cancelled) {
+          setStorageError('無法從 FastAPI 取得歷史紀錄，請確認後端與 MySQL 已啟動。');
+          console.error('載入歷史紀錄失敗', error);
+        }
+      }
+    };
+    void loadRecords();
+    return () => { cancelled = true; };
+  }, [ready, settings.apiUrl]);
 
   useEffect(() => {
     if (!hasHydratedRef.current) return;
@@ -190,21 +263,62 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     );
   }, [settings, ready]);
 
-  /**
-   * 新增病患資訊，自動生成遞增 ID (如 P-1004) 與目前 ISO 時間
-   */
-  const addPatient = (patient: Omit<Patient, 'id' | 'createdAt'>) => {
-    const newId = `P-${nextPatientIdRef.current}`;
-    nextPatientIdRef.current += 1;
+  /** 由 FastAPI 新增病患，確認 MySQL 寫入成功後才更新畫面。 */
+  const addPatient = async (patient: Omit<Patient, 'id' | 'createdAt'>): Promise<Patient> => {
+    const response = await fetch(`${getPatientApiBaseUrl(settings.apiUrl)}/api/patients`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: patient.name,
+        age: patient.age,
+        gender: patient.gender,
+        bedNumber: patient.bedNumber || null,
+        note: patient.note || null,
+      }),
+    });
+    if (!response.ok) {
+      const detail = await response.text();
+      throw new Error(`新增病患失敗（HTTP ${response.status}）：${detail}`);
+    }
+    const data: BackendPatient = await response.json();
+    const created = fromBackendPatient(data);
+    setPatients(prev => [...prev.filter(item => item.id !== created.id), created]);
+    return created;
+  };
 
-    const newPatient: Patient = {
-      ...patient,
-      id: newId,
-      createdAt: new Date().toISOString(),
-    };
-    
-    setPatients(prev => [...prev, newPatient]);
-    return newPatient;
+  /** 病患 PATCH 成功後才更新列表。 */
+  const updatePatient = async (id: string, changes: Pick<Patient, 'name' | 'age' | 'gender'>): Promise<Patient> => {
+    const response = await fetch(`${getPatientApiBaseUrl(settings.apiUrl)}/api/patients/${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: changes.name.trim(), age: changes.age, gender: changes.gender }),
+    });
+    if (!response.ok) {
+      let detail = `HTTP ${response.status}`;
+      try { const body = await response.json(); if (typeof body.detail === 'string') detail = body.detail; } catch {}
+      throw new Error(`修改病患失敗：${detail}`);
+    }
+    const data: BackendPatient = await response.json();
+    if (data.patient_id !== id) throw new Error('伺服器回傳的病患編號不一致');
+    const updated = fromBackendPatient(data);
+    setPatients(prev => prev.map(p => p.id === id ? updated : p));
+    return updated;
+  };
+
+  /** 後端拒絕刪除有量測紀錄的病患（409）。 */
+  const deletePatient = async (id: string): Promise<void> => {
+    const response = await fetch(`${getPatientApiBaseUrl(settings.apiUrl)}/api/patients/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+    });
+    if (!response.ok) {
+      let detail = `HTTP ${response.status}`;
+      try { const body = await response.json(); if (typeof body.detail === 'string') detail = body.detail; } catch {}
+      throw new Error(`刪除病患失敗：${detail}`);
+    }
+    const data: { patient_id: string } = await response.json();
+    if (data.patient_id !== id) throw new Error('伺服器回傳的病患編號不一致');
+    setPatients(prev => prev.filter(p => p.id !== id));
+    if (settings.primaryPatientId === id) updateSettings({ primaryPatientId: undefined });
   };
 
   /** Save only a completed, validated backend result; retries update the same ID. */
@@ -224,10 +338,55 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }));
   };
 
+  /** 只有 FastAPI 確認更新成功，才同步更新前端列表。 */
+  const updateRecord = async (id: string, changes: Pick<BowelRecord, 'symptoms' | 'mealTime' | 'hasCaffeine'>): Promise<void> => {
+    const response = await fetch(`${getPatientApiBaseUrl(settings.apiUrl)}/api/records/${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        symptoms: changes.symptoms ?? [],
+        meal_time: changes.mealTime ?? null,
+        has_caffeine: changes.hasCaffeine ?? false,
+      }),
+    });
+    if (!response.ok) {
+      let detail = `HTTP ${response.status}`;
+      try {
+        const body = await response.json();
+        if (typeof body.detail === 'string') detail = body.detail;
+      } catch {}
+      throw new Error(`儲存失敗：${detail}`);
+    }
+    const updated: BackendRecord = await response.json();
+    if (updated.record_id !== id) throw new Error('伺服器回傳的紀錄編號不一致');
+    setRecords(previous => previous.map(item => item.id === id
+      ? { ...item, ...fromBackendRecord(updated), aiResult: item.aiResult, note: item.note }
+      : item));
+  };
+
+  /** DELETE 成功後才移除前端紀錄，回報實體音檔是否清理成功。 */
+  const deleteRecord = async (id: string): Promise<{ audioDeleted: boolean }> => {
+    const response = await fetch(`${getPatientApiBaseUrl(settings.apiUrl)}/api/records/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+    });
+    if (!response.ok) {
+      let detail = `HTTP ${response.status}`;
+      try {
+        const body = await response.json();
+        if (typeof body.detail === 'string') detail = body.detail;
+      } catch {}
+      throw new Error(`刪除失敗：${detail}`);
+    }
+    const result: { record_id: string; audio_deleted: boolean } = await response.json();
+    if (result.record_id !== id) throw new Error('伺服器回傳的紀錄編號不一致，請重新整理確認');
+    setRecords(previous => previous.filter(item => item.id !== id));
+    return { audioDeleted: result.audio_deleted === true };
+  };
+
   return (
-    <AppContext.Provider value={{ patients, records, settings, ready, storageError, addPatient, addRecord, updateSettings,
-      updateRecord: (id, changes) => setRecords(prev => editRecord(prev, id, changes)),
-      deleteRecord: id => setRecords(prev => removeRecord(prev, id)),
+    <AppContext.Provider value={{ patients, records, settings, ready, storageError, addPatient, updatePatient, deletePatient, addRecord, updateSettings,
+      updateRecord,
+      deleteRecord,
     }}>
       {children}
     </AppContext.Provider>

@@ -7,7 +7,7 @@ const compiled = ts.transpileModule(fs.readFileSync('services/measurement.ts', '
 }).outputText;
 const context = { exports: {}, AbortController, setTimeout, clearTimeout };
 vm.runInNewContext(compiled, context);
-const { MeasurementSession, bowelSoundLabel } = context.exports;
+const { MeasurementSession } = context.exports;
 const input = { patientId: 'alice', symptoms: [], mealTime: '未填寫' };
 const audio = { uri: 'test://audio', mimeType: 'audio/wav', duration: 20 };
 const result = { id: 'server-record', patientId: 'alice', duration: 20, createdAt: '2026-10-22T00:00:00Z',
@@ -20,15 +20,6 @@ function setup(overrides = {}, timing = { requestMs: 100, pollMs: 0, maxPolls: 2
   return { session, states, adapter };
 }
 async function main() {
-  for (const [status, label] of Object.entries({ normal: '正常腸音', hyperactive: '腸音亢進', hypoactive: '腸音減弱', not_detected: '本次未偵測到腸音' })) {
-    const check = setup({ upload: async () => ({ status: 'completed', result: { ...result, aiResult: { ...result.aiResult, status } } }) });
-    await check.session.run();
-    assert.equal(check.states.at(-1).phase, 'completed');
-    assert.equal(check.states.at(-1).result.aiResult.status, status);
-    assert.equal(bowelSoundLabel(status), label);
-  }
-  assert.equal(bowelSoundLabel('abnormal'), '舊版異常結果（未細分狀態）');
-  assert.equal(bowelSoundLabel('unexpected'), '無法辨識的狀態');
   const success = setup();
   await success.session.run();
   assert.equal(success.states.map(s => s.phase).join(','), 'recording,uploading,completed');
@@ -59,10 +50,6 @@ async function main() {
     { ...result, patientId: 'bob' },
     { ...result, duration: 30 },
     { ...result, aiResult: { ...result.aiResult, status: 'unknown' } },
-    { ...result, aiResult: { ...result.aiResult, status: 'abnormal' } },
-    { ...result, aiResult: { ...result.aiResult, status: 'insufficient_audio' } },
-    { ...result, aiResult: { ...result.aiResult, status: 'toString' } },
-    { ...result, aiResult: { ...result.aiResult, status: ['normal'] } },
     { ...result, aiResult: { ...result.aiResult, confidence: 99 } },
     { ...result, aiResult: { ...result.aiResult, waveform: [NaN] } },
   ]) {

@@ -1,17 +1,5 @@
-export const BOWEL_SOUND_LABELS = {
-  normal: '正常腸音',
-  hyperactive: '腸音亢進',
-  hypoactive: '腸音減弱',
-  not_detected: '本次未偵測到腸音',
-} as const;
-export type BowelSoundStatus = keyof typeof BOWEL_SOUND_LABELS;
-export function bowelSoundLabel(status: string): string {
-  if (status === 'abnormal') return '舊版異常結果（未細分狀態）';
-  return Object.prototype.hasOwnProperty.call(BOWEL_SOUND_LABELS, status)
-    ? BOWEL_SOUND_LABELS[status as BowelSoundStatus] : '無法辨識的狀態';
-}
 export interface AnalysisResult {
-  status: BowelSoundStatus;
+  status: 'normal' | 'abnormal';
   frequency: number | null;
   confidence: number | null;
   notes: string;
@@ -58,7 +46,7 @@ export function validateResult(value: MeasurementResult, input: MeasurementInput
   if (!value || typeof value.id !== 'string' || !value.id || value.patientId !== input.patientId
     || !Number.isFinite(value.duration) || value.duration <= 0 || value.duration > 20 || Math.abs(value.duration - audio.duration) > 0.1
     || typeof value.createdAt !== 'string' || !Number.isFinite(Date.parse(value.createdAt))
-    || !r || typeof r.status !== 'string' || !Object.prototype.hasOwnProperty.call(BOWEL_SOUND_LABELS, r.status) || typeof r.notes !== 'string'
+    || !r || !['normal', 'abnormal'].includes(r.status) || typeof r.notes !== 'string'
     || !(r.frequency === null || (Number.isFinite(r.frequency) && r.frequency >= 0))
     || !(r.confidence === null || (Number.isFinite(r.confidence) && r.confidence >= 0 && r.confidence <= 1))
     || !Array.isArray(r.waveform) || r.waveform.length > 10000 || !r.waveform.every(v => Number.isFinite(v) && Math.abs(v) <= 1)
